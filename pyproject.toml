@@ -102,7 +102,7 @@ strict = true
 [[tool.mypy.overrides]]
 module = "tests"
 strict = false
-disable_error_code = ["arg-type", "attr-defined", "index", "no-untyped-call", "no-untyped-def", "operator", "var-annotated"]
+disable_error_code = ["comparison-overlap", "no-untyped-call", "no-untyped-def"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

@@ -19,8 +19,6 @@ Two advantages of `setfield` over ordinary Python sets are:
 1. The presence of an ambient *universe* set makes the complement well-defined.
 2. Compositional constructs like "union of ranges" and boolean operators can be used to make set construction and membership querying more efficient in both time and memory.
 
-**Undercat** is a small Python library implementing a functional programming construct called the *Reader functor*. This pattern is particularly useful for dependency injection, composing functions, and operating on immutable, context-aware computations.
-
 <!--
 TODO: real-world example of mini-ontology (e.g. "tags")
 
