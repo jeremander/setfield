@@ -1,0 +1,110 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "setfield"
+dynamic = ["version"]
+description = "Library providing a field-of-sets construction."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+  { name = "Jeremy Silver", email = "jeremys@nessiness.com" }
+]
+classifiers = [
+  "Programming Language :: Python"
+]
+dependencies = []
+
+[project.urls]
+Documentation = "https://github.com/jeremander/setfield#readme"
+Issues = "https://github.com/jeremander/setfield/issues"
+Source = "https://github.com/jeremander/setfield"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.sdist]
+include = ["/setfield", "tests.py"]
+
+[tool.hatch.version]
+path = "setfield/__init__.py"
+
+[tool.hatch.envs.lint]
+dependencies = [
+  "mypy>=1.19",
+  "ruff>=0.15",
+  "pytest-mypy",
+  "vermin>=1.6",
+]
+
+[tool.hatch.envs.lint.scripts]
+# linting
+run-ruff = "ruff check {args:setfield tests.py}"
+# ensure compatibility with Py3.10 and higher
+run-vermin = "vermin {args:.}"
+# type-checking
+run-mypy = "mypy --install-types --non-interactive {args:setfield tests.py}"
+all = ["run-ruff", "run-vermin", "run-mypy"]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+]
+
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests.py}"
+test-debug = "pytest --pdb {args:tests.py}"
+cov-report = ["- coverage combine", "coverage report", "coverage html"]
+cov = ["test", "cov-report"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.badge]
+dependencies = [
+  "coverage",
+  "genbadge[tests,coverage]"
+]
+
+[tool.hatch.envs.badge.scripts]
+badge-cov = ["coverage xml", "genbadge coverage -i coverage.xml"]
+badges = ["badge-cov"]
+
+[tool.hatch.publish.index]
+disable = true
+
+[tool.commitizen]
+tag_format = "v$major.$minor.$patch"
+
+[tool.coverage.run]
+source_pkgs = ["setfield"]
+branch = true
+parallel = true
+omit = ["venv/*"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.mypy]
+exclude = ["tmp.*"]
+warn_unused_configs = true
+strict = true
+
+[[tool.mypy.overrides]]
+module = "tests"
+strict = false
+disable_error_code = ["arg-type", "attr-defined", "index", "no-untyped-call", "no-untyped-def", "operator", "var-annotated"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests.py"]
+addopts = "--verbose --durations=10 --cov=setfield --cov-config pyproject.toml"
