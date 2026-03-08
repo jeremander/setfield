@@ -1,4 +1,4 @@
-target-version = "py313"
+target-version = "py311"
 
 # rules to include
 
@@ -6,11 +6,11 @@ lint.select = ["E", "F"]
 
 lint.extend-select = [
     "A",  # builtins
-    "ANN",  # annotations
+    # "ANN",  # annotations
     "B",  # bugbear
     "C",  # mccabe (complexity)
     "C4",  # comprehensions
-    "D",  # docstrings
+    # "D",  # docstrings
     "I",  # isort (import order)
     "ICN",  # import conventions
     "PT",  # pytest style
@@ -53,7 +53,9 @@ lint.ignore = [
     "RET505",  # unnecessary 'else' after 'return'
     "UP006",  # deprecated collection types in annotations
     "UP007",  # | instead of Union
-    "UP035"  # import replacements (collections.abc)
+    "UP035",  # import replacements (collections.abc)
+    "UP040",  # type instead of TypeAlias
+    "UP045",  # | None instead of Optional
 ]
 
 # paths to exclude
