@@ -3,6 +3,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from functools import reduce
 import operator
+import re
 from typing import Optional, TypeVar
 
 from hypothesis import event, given, settings
@@ -359,6 +360,11 @@ class TestSubset:
         assert subset.isdisjoint(neg_subset)
         assert subset ^ subset == empty_subset
         assert subset ^ neg_subset == universe_subset
+        if isinstance(subset, (Subset, RangeUnionSubset)):
+            # eval should be the inverse of repr
+            subset2 = eval(repr(subset))
+            assert type(subset2) is type(subset)
+            assert subset2 == subset
 
     def test_empty_subset(self):
         assert type(empty_subset) is Subset
@@ -378,6 +384,25 @@ class TestSubset:
         assert ~universe_subset == empty_subset
         self._test_base_subset(universe_subset)
 
+    def test_elements_not_in_universe(self):
+        universe = {0, 1, 2}
+        with pytest.raises(ValueError, match='3 is not an element of the universe'):
+            _ = Subset(universe, {1, 3})
+        subset = DynamicSubset(universe, lambda: {1, 3})
+        assert subset.universe == universe
+        # error is deferred until elements are created
+        with pytest.raises(ValueError, match='3 is not an element of the universe'):
+            _ = subset.elements
+
+    def test_dynamic_subset(self):
+        subset = DynamicSubset(TEST_RANGE, lambda: {0, 1, 2})
+        assert subset.universe == TEST_UNIVERSE
+        assert subset.elements == {0, 1, 2}
+        self._test_base_subset(subset)
+        subset = DynamicSubset(TEST_RANGE, lambda: range(3))
+        assert subset.universe == TEST_UNIVERSE
+        assert subset.elements == {0, 1, 2}
+
     def test_filter_subset(self):
         subset = FilterSubset(TEST_RANGE, lambda i: i < 5)  # type: ignore[operator]
         assert len(subset) == 5
@@ -386,7 +411,7 @@ class TestSubset:
         assert set(subset) == set(range(5))
         self._test_base_subset(subset)
 
-    def test_range_union_example(self):
+    def test_range_union(self):
         subset = RangeUnionSubset(TEST_RANGE, [range(5, 10), range(15, 20)])
         assert len(subset) == 10
         assert 5 in subset
@@ -445,6 +470,29 @@ class TestSubset:
             _ = RangeUnionSubset(TEST_RANGE, ranges)
         subset = RangeUnionSubset.from_ranges(TEST_RANGE, ranges)
         self._test_base_subset(subset)
+
+    @pytest.mark.parametrize(['subset', 'repr_pattern'], [
+        (
+            Subset({0, 1, 2}, {0}),
+            r'Subset\(universe=\{0, 1, 2\}, elements=\{0\}\)',
+        ),
+        (
+            DynamicSubset({0, 1, 2}, lambda: {0}),
+            r'DynamicSubset\(universe=\{0, 1, 2\}, get_elements=.+\)',
+        ),
+        (
+            FilterSubset({0, 1, 2}, lambda i: i % 2 == 0),  # type: ignore[operator]
+            r'FilterSubset\(universe=\{0, 1, 2\}, predicate=.+\)',
+        ),
+        (
+            RangeUnionSubset(range(5), [range(2, 4), range(4, 5)]),
+            r'RangeUnionSubset\(universe_range=range\(0, 5\), ranges=\[range\(2, 4\), range\(4, 5\)\]\)',
+        ),
+    ])
+    def test_repr(self, subset, repr_pattern):
+        subset_repr = repr(subset)
+        assert str(subset) == subset_repr
+        assert re.match(repr_pattern, subset_repr)
 
     def test_subset_mapped(self):
         base_subset = subset_static({0, 1, 2, 3, 4})

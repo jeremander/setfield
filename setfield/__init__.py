@@ -154,6 +154,13 @@ class ConcreteSubset(BaseSubset[T]):
     def _get_universe(self) -> set[T]:
         return self._universe
 
+    def _validate_elements(self, elements: Iterable[T]) -> None:
+        """Checks whether each of the given elements is in the universe, raising a ValueError otherwise."""
+        universe = self._universe
+        for elt in elements:
+            if elt not in universe:
+                raise ValueError(f'{elt} is not an element of the universe')
+
 
 @dataclass(eq=False)
 class Subset(ConcreteSubset[T]):
@@ -164,6 +171,10 @@ class Subset(ConcreteSubset[T]):
     def __init__(self, universe: Iterable[T], elements: Iterable[T]) -> None:
         super().__init__(universe)
         self._elements = elements if isinstance(elements, set) else set(elements)
+        self._validate_elements(self._elements)
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(universe={self._universe!r}, elements={self._elements!r})'
 
     def _get_elements(self) -> set[T]:
         return self._elements
@@ -192,9 +203,15 @@ class DynamicSubset(ConcreteSubset[T]):
         super().__init__(universe)
         self.get_elements = get_elements
 
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(universe={self._universe!r}, get_elements={self.get_elements!r})'
+
     def _get_elements(self) -> set[T]:
         elements = self.get_elements()
-        return elements if isinstance(elements, set) else set(elements)
+        if not isinstance(elements, set):
+            elements = set(elements)
+        self._validate_elements(elements)
+        return elements
 
 
 @dataclass(eq=False)
@@ -209,6 +226,9 @@ class FilterSubset(ConcreteSubset[T]):
     def __init__(self, universe: Iterable[T], predicate: Callable[[object], bool]) -> None:
         super().__init__(universe)
         self.predicate = predicate
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(universe={self._universe!r}, predicate={self.predicate!r})'
 
     def _get_elements(self) -> set[T]:
         return set(filter(self.predicate, self._universe))
@@ -406,7 +426,9 @@ class RangeUnionSubset(BaseSubset[int]):
     _universe_range: range
     ranges: Ranges
 
-    def __post_init__(self) -> None:
+    def __init__(self, universe_range: range, ranges: Ranges) -> None:
+        self._universe_range = universe_range
+        self.ranges = ranges
         # make sure ranges are valid for the universe
         for rng in self.ranges:
             if rng.step not in [1, None]:
@@ -421,6 +443,9 @@ class RangeUnionSubset(BaseSubset[int]):
         for (rng1, rng2) in zip(self.ranges, self.ranges[1:]):
             if rng1.stop > rng2.start:
                 raise ValueError('ranges must be sorted and not overlap')
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(universe_range={self._universe_range!r}, ranges={self.ranges!r})'
 
     @classmethod
     def from_ranges(cls, universe_range: range, ranges: Ranges) -> RangeUnionSubset:
