@@ -1,4 +1,5 @@
-"""Provides a framework for expressing a boolean field of sets construction, i.e. an ambient universe set with subsets that can be combined with boolean setwise operations (intersection, union, complement)."""
+"""Provides a framework for expressing a boolean field of sets construction, i.e. an ambient universe set with subsets
+that can be combined with boolean setwise operations (intersection, union, complement)."""
 
 from __future__ import annotations
 
@@ -36,7 +37,8 @@ class BaseSubset(Set[T]):
 
     @cached_property
     def universe(self) -> set[T]:
-        """Cached property returning the set of elements representing the ambient set (universe) of the field of sets."""
+        """Cached property returning the set of elements representing the ambient set (universe)
+        of the field of sets."""
         return self._get_universe()
 
     @abstractmethod
@@ -197,8 +199,10 @@ class DynamicSubset(ConcreteSubset[T]):
 
 @dataclass(eq=False)
 class FilterSubset(ConcreteSubset[T]):
-    """A subset which stores the universe concretely but uses a (callable) predicate to determine if an element is in the subset.
-    This can sometimes be more efficient than computing the full set, especially when there are a large number of different subsets to deal with."""
+    """A subset which stores the universe concretely but uses a (callable) predicate to determine if
+    an element is in the subset.
+    This can sometimes be more efficient than computing the full set, especially when there are a large number
+    of different subsets to deal with."""
 
     predicate: Callable[[object], bool]
 
@@ -325,9 +329,12 @@ def indices_to_minimal_ranges(indices: Iterable[int]) -> list[range]:
     return ranges
 
 def _ranges_intersection(universe: range, ranges_seq: Sequence[Ranges]) -> list[range]:
-    """Given a range corresponding to a universe, and a sequence of range-unions, returns a new list of disjoint ranges representing the intersection of the given ranges.
-    If the given list of ranges is empty, returns the whole universe (which is implicitly the intersection of no ranges)."""
-    # NOTE: there might be a more efficient implementation possible, but for simplicity we just take the set intersection and reconstruct the minimal set of ranges.
+    """Given a range corresponding to a universe, and a sequence of range-unions,
+    returns a new list of disjoint ranges representing the intersection of the given ranges.
+    If the given list of ranges is empty, returns the whole universe (which is implicitly
+    the intersection of no ranges)."""
+    # NOTE: there might be a more efficient implementation possible,
+    # but for simplicity we just take the set intersection and reconstruct the minimal set of ranges.
     if not ranges_seq:  # empty intersection is the full universe
         return [universe]
     in_universe = partial(contains, universe)
@@ -337,7 +344,8 @@ def _ranges_intersection(universe: range, ranges_seq: Sequence[Ranges]) -> list[
     return indices_to_minimal_ranges(idx_set)
 
 def _ranges_union(ranges_seq: Sequence[Ranges]) -> list[range]:
-    """Given a sequence of range-unions, returns a new list of disjoint ranges representing the union of the given ranges.
+    """Given a sequence of range-unions, returns a new list of disjoint ranges representing
+    the union of the given ranges.
     If the given list of ranges is empty, returns the empty list."""
     ranges: Ranges = sorted([rng for ranges in ranges_seq for rng in ranges], key=attrgetter('start'))
     new_ranges: list[range] = []
@@ -358,8 +366,10 @@ def _ranges_union(ranges_seq: Sequence[Ranges]) -> list[range]:
     return new_ranges
 
 def _ranges_complement(universe: range, ranges: Ranges) -> list[range]:
-    """Given a range corresponding to a universe, and a range-union, returns a new list of disjoint ranges representing the complement of the given ranges.
-    If the given list of ranges is empty, returns the whole universe (which is implicitly the complement of the empty set)."""
+    """Given a range corresponding to a universe, and a range-union, returns a new list of disjoint ranges
+    representing the complement of the given ranges.
+    If the given list of ranges is empty, returns the whole universe (which is implicitly
+    the complement of the empty set)."""
     if not ranges:
         return [universe]
     new_ranges: list[range] = []
@@ -390,7 +400,8 @@ def _check_universe_ranges_match(universe_range1: range, universe_range2: range)
 @dataclass(eq=False)
 class RangeUnionSubset(BaseSubset[int]):
     """A subset of an integer universe, represented as a disjoint union of sorted ranges.
-    This is often a more efficient data structure than a set for enumeration and membership checks, as it can be much more compact when there are a lot of contiguous elements in the subset."""
+    This is often a more efficient data structure than a set for enumeration and membership checks,
+    as it can be much more compact when there are a lot of contiguous elements in the subset."""
 
     _universe_range: range
     ranges: Ranges
@@ -401,7 +412,9 @@ class RangeUnionSubset(BaseSubset[int]):
             if rng.step not in [1, None]:
                 raise ValueError('ranges may not have step != 1')
             if not _range_contains(self._universe_range, rng):
-                raise ValueError(f'invalid range [{rng.start}, {rng.stop}), bounds must be contained within universe range')
+                raise ValueError(
+                    f'invalid range [{rng.start}, {rng.stop}), bounds must be contained within universe range'
+                )
             if rng.start >= rng.stop:
                 raise ValueError(f'invalid range [{rng.start}, {rng.stop}), cannot have start >= stop')
         # make sure ranges are sorted and disjoint
@@ -461,7 +474,8 @@ class RangeUnionSubset(BaseSubset[int]):
 class MappedSubset(BaseSubset[T], Generic[S, T]):
     """A subset formed by mapping a function, `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
-    The function need not be one-to-one, and the function will need to be applied to all elements to determine the new set."""
+    The function need not be one-to-one, and the function will need to be applied to all elements
+    to determine the new set."""
 
     base_subset: BaseSubset[S]
     map_func: Callable[[S], T]
@@ -477,8 +491,10 @@ class MappedSubset(BaseSubset[T], Generic[S, T]):
 class IsoMappedSubset(MappedSubset[S, T]):
     """A subset formed by mapping a one-to-one function (isomorphism), `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
-    Additionally, the *inverse* of `map_func`, `map_func_inv` should be provided, since it will be used to check set membership without having to map all the base set elements themselves.
-    In order for things to work properly, the assumed properties must hold that `map_func` and `map_func_inv` are one-to-one and inverses of each other."""
+    Additionally, the *inverse* of `map_func`, `map_func_inv` should be provided, since it will be used to check
+    set membership without having to map all the base set elements themselves.
+    In order for things to work properly, the assumed properties must hold that `map_func` and `map_func_inv`
+    are one-to-one and inverses of each other."""
 
     map_func_inv: Callable[[T], S]
 
@@ -521,8 +537,10 @@ def safe_eval(
 ) -> T:
     """Calls Python's `eval` function in a more "safe" context, in that the caller must provide:
         1. `eval_name`: a callable which maps names (identifiers) to Python objects, and errors if the name is invalid.
-        2. `safe_node_types`: a set of `ast.Node` objects indicating which elements of Python syntax are permitted in the expression.
-    This makes it easy to create miniature Embedded Domain Specific Languages (EDSLs) using only a fragment of Python syntax.
+        2. `safe_node_types`: a set of `ast.Node` objects indicating which elements of Python syntax are permitted
+        in the expression.
+    This makes it easy to create miniature Embedded Domain Specific Languages (EDSLs) using only a fragment
+    of Python syntax.
     Most notably, it can support expressions that only consist of names and boolean connectives.
     If `eval_name` is None, then no identifiers will be permitted."""
     if eval_name is None:
@@ -542,6 +560,8 @@ def safe_eval(
     return eval(compile(tree, '<string>', 'eval'), {'__builtins__': {}}, _locals)  # type: ignore[no-any-return]
 
 def safe_eval_boolean_expr(expr: str, eval_name: Optional[Callable[[str], T]] = None) -> T:
-    """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using a safe version of `eval` which only allows specific identifiers and boolean connectives.
-    `eval_name` should be a function that maps names to Python objects, and it should raise an exception if the name is not valid."""
+    """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using
+    a safe version of `eval` which only allows specific identifiers and boolean connectives.
+    `eval_name` should be a function that maps names to Python objects, and it should raise an exception if
+    the name is not valid."""
     return safe_eval(expr, eval_name=eval_name, safe_node_types=BOOLEAN_SAFE_NODE_TYPES)

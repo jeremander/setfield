@@ -11,7 +11,22 @@ import hypothesis.strategies as st
 import pytest
 
 import setfield
-from setfield import BOOLEAN_SAFE_NODE_TYPES, BaseSubset, DynamicSubset, FilterSubset, IsoMappedSubset, MappedSubset, RangeUnionSubset, Subset, SubsetComplement, SubsetIntersection, SubsetUnion, indices_to_minimal_ranges, safe_eval, safe_eval_boolean_expr
+from setfield import (
+    BOOLEAN_SAFE_NODE_TYPES,
+    BaseSubset,
+    DynamicSubset,
+    FilterSubset,
+    IsoMappedSubset,
+    MappedSubset,
+    RangeUnionSubset,
+    Subset,
+    SubsetComplement,
+    SubsetIntersection,
+    SubsetUnion,
+    indices_to_minimal_ranges,
+    safe_eval,
+    safe_eval_boolean_expr,
+)
 
 
 T = TypeVar('T')
@@ -64,7 +79,12 @@ empty_subset = Subset.empty(TEST_UNIVERSE)
 universe_subset = Subset.full(TEST_UNIVERSE)
 
 def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5):
-    subsets_leaf = subsets_range_union() | subsets_static(max_size=max_leaf_size) | subsets_dynamic(max_size=max_leaf_size) | st.just(universe_subset)
+    subsets_leaf = (
+        subsets_range_union()
+        | subsets_static(max_size=max_leaf_size)
+        | subsets_dynamic(max_size=max_leaf_size)
+        | st.just(universe_subset)
+    )
     subsets_rec_without_negation = st.recursive(
         subsets_leaf,
         extend=lambda xs: xs | subset_intersections(xs, max_width=max_width) | subset_unions(xs, max_width=max_width),
@@ -72,7 +92,12 @@ def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5
     )
     subsets_rec_with_negation = st.recursive(
         subsets_leaf,
-        extend=lambda xs: xs | xs.map(operator.invert) | subset_intersections(xs, max_width=max_width) | subset_unions(xs, max_width=max_width),
+        extend=lambda xs: (
+            xs
+            | xs.map(operator.invert)
+            | subset_intersections(xs, max_width=max_width)
+            | subset_unions(xs, max_width=max_width)
+        ),
         max_leaves=max_leaves,
     )
     return st.one_of(subsets_rec_without_negation, subsets_rec_with_negation)
@@ -543,7 +568,10 @@ class TestSubset:
         ),
     ])
     def test_boolean_operator_universe_mismatch(self, subset1, subset2):
-        for op in [operator.lt, operator.le, operator.ge, operator.gt, operator.and_, operator.or_, operator.xor, operator.sub]:
+        for op in [
+            operator.lt, operator.le, operator.ge, operator.gt,
+            operator.and_, operator.or_, operator.xor, operator.sub
+        ]:
             with pytest.raises(ValueError, match='universes do not match'):
                 op(subset1, subset2)
         # equality does *not* raise an error
