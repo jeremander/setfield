@@ -33,9 +33,10 @@ path = "setfield/__init__.py"
 
 [tool.hatch.envs.lint]
 dependencies = [
+  "hypothesis>=6.148",
   "mypy>=1.19",
-  "ruff>=0.15",
   "pytest-mypy",
+  "ruff>=0.15",
   "vermin>=1.6",
 ]
 
@@ -50,8 +51,9 @@ all = ["run-ruff", "run-vermin", "run-mypy"]
 
 [tool.hatch.envs.test]
 dependencies = [
-    "pytest>=8.3",
-    "pytest-cov>=6.0",
+  "hypothesis>=6.148",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
 ]
 
 [tool.hatch.envs.test.scripts]
