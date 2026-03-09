@@ -27,7 +27,7 @@ The library is available on PyPI. To install:
 
 ## Usage
 
-Let's say we have a collection (universe) of movies, and we want to organize them by genre. However, we want to allow for some movies having multiple genres. We can create a **field of sets** like so:
+Suppose we have a collection (universe) of movies and want to organize them by genre, allowing some movies to belong to multiple genres. We can create a **field of sets** like so:
 
 ```python
 from setfield import Subset
@@ -36,7 +36,7 @@ movies = {
     'Alien',
     'Blade Runner',
     'Casablanca',
-    'Dunkirk'
+    'Dunkirk',
     'Frankenstein',
     'Her',
     'Interstellar',
@@ -76,20 +76,16 @@ def movies_for_genre(genre: str) -> Subset[str]:
     raise ValueError(f'unknown genre: {genre}')
 
 def interpret_genres(expr: str) -> Subset[str]:
-    """Create a function to interpret a boolean expression involving genres."""
+    """Interpret a boolean expression involving genres."""
     return safe_eval_boolean_expr(expr, eval_name=movies_for_genre)
 
->>> print(list(interpret_genres('sci_fi & horror')))
-['Alien']
 
->>> print(list(interpret_genres('horror - sci_fi')))
-['Frankenstein', 'The Shining']
-
->>> print(list(interpret_genres('~(sci_fi | horror | romance)')))
-['Dunkirk']
+assert interpret_genres('sci_fi & horror') == {'Alien'}
+assert interpret_genres('horror - sci_fi') == {'Frankenstein', 'The Shining'}
+assert interpret_genres('~(sci_fi | horror | romance)') == {'Dunkirk'}
 ```
 
-Per the name, the `safe_eval_boolean_expr` is "safe" in that it will not execute arbitrary Python code; it will only evaluate names using the provided `eval_name` function, and then apply boolean operations to the results.
+As the name suggests, `safe_eval_boolean_expr` is "safe" in that it will not execute arbitrary Python code—it evaluates names exclusively with the provided `eval_name` function and then applies boolean operations to the results.
 
 ### Union of Ranges
 
@@ -98,27 +94,27 @@ If we're concerned with integer subsets, there is a `RangeUnionSubset` data stru
 As an example:
 
 ```python
-from setfield import RangeUnionSubset
+>>> from setfield import RangeUnionSubset
 
-subset = RangeUnionSubset(range(100), [range(0, 10), range(50, 75)])
+>>> subset = RangeUnionSubset(range(100), [range(0, 10), range(50, 75)])
 
-assert len(subset) == 35
-assert 9 in subset
-assert 20 not in subset
-assert 55 in subset
+>>> assert len(subset) == 35
+>>> assert 9 in subset
+>>> assert 20 not in subset
+>>> assert 55 in subset
 
 # complement is calculated efficiently
-print(~subset)
-# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(10, 50), range(75, 100)])
+>>> print(~subset)
+RangeUnionSubset(universe_range=range(0, 100), ranges=[range(10, 50), range(75, 100)])
 
 # likewise with intersections, unions, and differences
-subset2 = RangeUnionSubset(range(100), [range(40, 60)])
-print(subset & subset2)
-# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(50, 60)])
-print(subset | subset2)
-# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(40, 75)])
-print(subset - subset2)
-# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(60, 75)])
+>>> subset2 = RangeUnionSubset(range(100), [range(40, 60)])
+>>> print(subset & subset2)
+RangeUnionSubset(universe_range=range(0, 100), ranges=[range(50, 60)])
+>>> print(subset | subset2)
+RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(40, 75)])
+>>> print(subset - subset2)
+RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(60, 75)])
 ```
 
 ## License
