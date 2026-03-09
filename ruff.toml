@@ -6,11 +6,11 @@ lint.select = ["E", "F"]
 
 lint.extend-select = [
     "A",  # builtins
-    # "ANN",  # annotations
+    "ANN",  # annotations
     "B",  # bugbear
     "C",  # mccabe (complexity)
     "C4",  # comprehensions
-    # "D",  # docstrings
+    "D",  # docstrings
     "I",  # isort (import order)
     "ICN",  # import conventions
     "PT",  # pytest style

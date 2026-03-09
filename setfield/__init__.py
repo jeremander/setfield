@@ -1,3 +1,5 @@
+"""Provides a framework for expressing a boolean field of sets construction, i.e. an ambient universe set with subsets that can be combined with boolean setwise operations (intersection, union, complement)."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -20,27 +22,30 @@ T = TypeVar('T')
 Ranges: TypeAlias = Sequence[range]
 
 
-###############
-# SET ALGEBRA #
-###############
+#################
+# FIELD OF SETS #
+#################
 
 @total_ordering
 class Subset(Set[T]):
+    """Abstract base class representing a subset of some ambient universe set."""
 
     @abstractmethod
     def _get_universe(self) -> set[T]:
-        """Gets the set of elements representing the ambient set (universe) of an algebra of sets."""
+        """Gets the set of elements representing the ambient set (universe) of the field of sets."""
 
     @cached_property
     def universe(self) -> set[T]:
+        """Cached property returning the set of elements representing the ambient set (universe) of the field of sets."""
         return self._get_universe()
 
     @abstractmethod
     def _get_elements(self) -> set[T]:
-        """Gets the set of elements for this subset."""
+        """Gets the set of elements in this subset."""
 
     @cached_property
     def elements(self) -> set[T]:
+        """Cached property returning the set of elements in this subset."""
         return self._get_elements()
 
     def __contains__(self, item: object) -> bool:
@@ -129,12 +134,16 @@ class Subset(Set[T]):
 
 
 def _check_universes_match(subset1: Subset[T], subset2: Subset[T]) -> None:
+    """Checks whether the universes of two Subsets match.
+    If not, raises a ValueError."""
     if subset1.universe != subset2.universe:
         raise ValueError('universes do not match')
 
 
 @dataclass(eq=False)
 class ConcreteSubset(Subset[T]):
+    """Base class for a concrete subset where the universe is stored explicitly as a set."""
+
     _universe: set[T] = field(repr=False)
 
     def _get_universe(self) -> set[T]:
@@ -143,6 +152,8 @@ class ConcreteSubset(Subset[T]):
 
 @dataclass(eq=False)
 class SubsetStatic(ConcreteSubset[T]):
+    """A concrete subset which stores the universe and the subset explicitly as sets."""
+
     _elements: set[T]
 
     def __init__(self, universe: set[T], elements: Iterable[T]) -> None:
@@ -154,15 +165,22 @@ class SubsetStatic(ConcreteSubset[T]):
 
     @classmethod
     def empty(cls, universe: set[T]) -> SubsetStatic[T]:
+        """Constructor which, given the universe, returns a SubsetStatic representing the empty subset.
+        This is also called the "bottom" element of the field of sets."""
         return cls(universe, set())
 
     @classmethod
     def full(cls, universe: set[T]) -> SubsetStatic[T]:
+        """Constructor which, given the universe, returns a SubsetStatic representing the whole universe.
+        This is also called the "top" element of the field of sets."""
         return cls(universe, universe)
 
 
 @dataclass(eq=False)
 class SubsetDynamic(ConcreteSubset[T]):
+    """A subset which stores the universe concretely but computes the subset lazily via a callable.
+    The first time the subset is computed, it is stored on the object and then reused."""
+
     get_elements: Callable[[], Iterable[T]]
 
     def _get_elements(self) -> set[T]:
@@ -172,6 +190,8 @@ class SubsetDynamic(ConcreteSubset[T]):
 
 @dataclass(eq=False)
 class SubsetFilter(ConcreteSubset[T]):
+    """A subset which stores the universe concretely but uses a (callable) predicate to determine if an element is in the subset.
+    This can sometimes be more efficient than computing the full set, especially when there are a large number of different subsets to deal with."""
 
     pred: Callable[[object], bool]
 
@@ -189,6 +209,10 @@ class SubsetFilter(ConcreteSubset[T]):
 
 @dataclass(eq=False)
 class SubsetComplement(SubsetFilter[T]):
+    """A subset which is a complement of another subset.
+    This stores the original subset as a `subset` field.
+    Set membership is computed as the negation of membership in the inner subset."""
+
     subset: Subset[T]
 
     def __init__(self, subset: Subset[T]) -> None:
@@ -206,6 +230,10 @@ class SubsetComplement(SubsetFilter[T]):
 
 @dataclass(eq=False)
 class SubsetIntersection(ConcreteSubset[T]):
+    """A subset which is the intersection of other subsets.
+    This stores a list of subsets to intersect as a `subsets` field.
+    Set membership is computed as the logical conjuction (AND) of membership in all of the inner subsets."""
+
     subsets: list[Subset[T]]
 
     @cached_property
@@ -241,6 +269,10 @@ class SubsetIntersection(ConcreteSubset[T]):
 
 @dataclass(eq=False)
 class SubsetUnion(ConcreteSubset[T]):
+    """A subset which is the union of other subsets.
+    This stores a list of subsets to union as a `subsets` field.
+    Set membership is computed as the logical disjunction (OR) of membership in all of the inner subsets."""
+
     subsets: list[Subset[T]]
 
     def _get_elements(self) -> set[T]:
@@ -265,6 +297,8 @@ class SubsetUnion(ConcreteSubset[T]):
 ###################
 
 def indices_to_minimal_ranges(indices: Iterable[int]) -> list[range]:
+    """Given a set of indices, calculates the minimal set of disjoint ranges equivalent to the indices.
+    Returns a list of range objects."""
     ranges = []
     first = None
     for i in sorted(indices):
@@ -280,6 +314,8 @@ def indices_to_minimal_ranges(indices: Iterable[int]) -> list[range]:
     return ranges
 
 def _ranges_intersection(universe: range, ranges_seq: Sequence[Ranges]) -> list[range]:
+    """Given a range corresponding to a universe, and a sequence of range-unions, returns a new list of disjoint ranges representing the intersection of the given ranges.
+    If the given list of ranges is empty, returns the whole universe (which is implicitly the intersection of no ranges)."""
     # NOTE: there might be a more efficient implementation possible, but for simplicity we just take the set intersection and reconstruct the minimal set of ranges.
     if not ranges_seq:  # empty intersection is the full universe
         return [universe]
@@ -290,6 +326,8 @@ def _ranges_intersection(universe: range, ranges_seq: Sequence[Ranges]) -> list[
     return indices_to_minimal_ranges(idx_set)
 
 def _ranges_union(ranges_seq: Sequence[Ranges]) -> list[range]:
+    """Given a sequence of range-unions, returns a new list of disjoint ranges representing the union of the given ranges.
+    If the given list of ranges is empty, returns the empty list."""
     ranges: Ranges = sorted([rng for ranges in ranges_seq for rng in ranges], key=attrgetter('start'))
     new_ranges: list[range] = []
     first = None
@@ -309,6 +347,8 @@ def _ranges_union(ranges_seq: Sequence[Ranges]) -> list[range]:
     return new_ranges
 
 def _ranges_complement(universe: range, ranges: Ranges) -> list[range]:
+    """Given a range corresponding to a universe, and a range-union, returns a new list of disjoint ranges representing the complement of the given ranges.
+    If the given list of ranges is empty, returns the whole universe (which is implicitly the complement of the empty set)."""
     if not ranges:
         return [universe]
     new_ranges: list[range] = []
@@ -330,12 +370,17 @@ def _range_contains(range1: range, range2: range) -> bool:
     return (range1.start <= range2.start) and (range1.stop >= range2.stop)
 
 def _check_universe_ranges_match(universe_range1: range, universe_range2: range) -> None:
+    """Checks whether two universes, represented as ranges, match.
+    If not, raises a ValueError."""
     if universe_range1 != universe_range2:
         raise ValueError('universes do not match')
 
 
 @dataclass(eq=False)
 class SubsetRangeUnion(Subset[int]):
+    """A subset of an integer universe, represented as a disjoint union of sorted ranges.
+    This is often a more efficient data structure than a set for enumeration and membership checks, as it can be much more compact when there are a lot of contiguous elements in the subset."""
+
     _universe_range: range
     ranges: Ranges
 
@@ -403,6 +448,10 @@ class SubsetRangeUnion(Subset[int]):
 
 @dataclass(eq=False)
 class SubsetMapped(Subset[T], Generic[S, T]):
+    """A subset formed by mapping a function, `map_func`, onto a base subset.
+    This may transform the type of the base subset depending on the output type of the function.
+    The function need not be one-to-one, and the function will need to be applied to all elements to determine the new set."""
+
     base_subset: Subset[S]
     map_func: Callable[[S], T]
 
@@ -415,6 +464,11 @@ class SubsetMapped(Subset[T], Generic[S, T]):
 
 @dataclass(eq=False)
 class SubsetIsoMapped(SubsetMapped[S, T]):
+    """A subset formed by mapping a one-to-one function, `map_func`, onto a base subset.
+    This may transform the type of the base subset depending on the output type of the function.
+    Additionally, the *inverse* of `map_func`, `map_func_inv` should be provided, since it will be used to check set membership without having to map all the base set elements themselves.
+    In order for things to work properly, the assumed properties must hold that `map_func` and `map_func_inv` are one-to-one and inverses of each other."""
+
     map_func_inv: Callable[[T], S]
 
     # NOTE: we avoid calling self.elements as much as possible to defer full enumeration
@@ -454,6 +508,12 @@ def safe_eval(
     *,
     safe_node_types: set[type],
 ) -> T:
+    """Calls Python's `eval` function in a more "safe" context, in that the caller must provide:
+        1. `eval_name`: a callable which maps names (identifiers) to Python objects, and errors if the name is invalid.
+        2. `safe_node_types`: a set of `ast.Node` objects indicating which elements of Python syntax are permitted in the expression.
+    This makes it easy to create miniature Embedded Domain Specific Languages (EDSLs) using only a fragment of Python syntax.
+    Most notably, it can support expressions that only consist of names and boolean connectives.
+    If `eval_name` is None, then no identifiers will be permitted."""
     if eval_name is None:
         safe_node_types = safe_node_types - {ast.Name}
     try:
@@ -471,4 +531,6 @@ def safe_eval(
     return eval(compile(tree, '<string>', 'eval'), {'__builtins__': {}}, _locals)  # type: ignore[no-any-return]
 
 def safe_eval_boolean_expr(expr: str, eval_name: Optional[Callable[[str], T]] = None) -> T:
+    """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using a safe version of `eval` which only allows specific identifiers and boolean connectives.
+    `eval_name` should be a function that maps names to Python objects, and it should raise an exception if the name is not valid."""
     return safe_eval(expr, eval_name=eval_name, safe_node_types=BOOLEAN_SAFE_NODE_TYPES)
