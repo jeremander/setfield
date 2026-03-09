@@ -11,7 +11,7 @@ import hypothesis.strategies as st
 import pytest
 
 import setfield
-from setfield import BOOLEAN_SAFE_NODE_TYPES, BaseSubset, SubsetComplement, SubsetDynamic, SubsetIntersection, SubsetIsoMapped, SubsetMapped, SubsetRangeUnion, SubsetStatic, SubsetUnion, indices_to_minimal_ranges, safe_eval, safe_eval_boolean_expr
+from setfield import BOOLEAN_SAFE_NODE_TYPES, BaseSubset, DynamicSubset, FilterSubset, IsoMappedSubset, MappedSubset, RangeUnionSubset, Subset, SubsetComplement, SubsetIntersection, SubsetUnion, indices_to_minimal_ranges, safe_eval, safe_eval_boolean_expr
 
 
 T = TypeVar('T')
@@ -24,8 +24,8 @@ TEST_RANGE = range(TEST_UNIVERSE_SIZE)
 TEST_UNIVERSE = set(TEST_RANGE)
 
 
-def subset_static(elements: set[int]) -> SubsetStatic[int]:
-    return SubsetStatic(TEST_UNIVERSE, elements)
+def subset_static(elements: set[int]) -> Subset[int]:
+    return Subset(TEST_UNIVERSE, elements)
 
 
 # STRATEGIES
@@ -39,7 +39,7 @@ def subsets_static(draw, *, max_size: int = 25):
 def subsets_dynamic(draw, *, max_size: int = 25):
     subset = draw(subsets_static(max_size=max_size))
     elements: set[int] = subset.elements
-    return SubsetDynamic(TEST_UNIVERSE, lambda: elements)
+    return DynamicSubset(TEST_UNIVERSE, lambda: elements)
 
 @st.composite
 def subsets_range_union(draw, *, max_num_ranges: int = 10):
@@ -52,7 +52,7 @@ def subsets_range_union(draw, *, max_num_ranges: int = 10):
         rng = _get_range(upper)
         return _get_ranges(num_ranges - 1, rng.start - 1) + [rng]
     num_ranges = draw(st.integers(0, max_num_ranges))
-    return SubsetRangeUnion(TEST_RANGE, _get_ranges(num_ranges, TEST_UNIVERSE_MAX))
+    return RangeUnionSubset(TEST_RANGE, _get_ranges(num_ranges, TEST_UNIVERSE_MAX))
 
 def subset_intersections(base_strat, *, max_width: int = 5):
     return st.lists(base_strat, max_size=max_width).map(lambda subsets: SubsetIntersection(TEST_UNIVERSE, subsets))
@@ -60,8 +60,8 @@ def subset_intersections(base_strat, *, max_width: int = 5):
 def subset_unions(base_strat, *, max_width: int = 5):
     return st.lists(base_strat, max_size=max_width).map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))
 
-empty_subset = SubsetStatic.empty(TEST_UNIVERSE)
-universe_subset = SubsetStatic.full(TEST_UNIVERSE)
+empty_subset = Subset.empty(TEST_UNIVERSE)
+universe_subset = Subset.full(TEST_UNIVERSE)
 
 def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5):
     subsets_leaf = subsets_range_union() | subsets_static(max_size=max_leaf_size) | subsets_dynamic(max_size=max_leaf_size) | st.just(universe_subset)
@@ -280,8 +280,8 @@ class TestRanges:
 
 class TestSubset:
 
-    def _test_subset(self, subset):
-        """Tests properties that should hold for every Subset."""
+    def _test_base_subset(self, subset):
+        """Tests properties that should hold for every BaseSubset."""
         with suppress(hypothesis.errors.InvalidArgument):
             event(f'type: {type(subset).__name__}')
         assert isinstance(subset, BaseSubset)
@@ -312,8 +312,8 @@ class TestSubset:
             _ = subset < 123
         # law of double negation
         assert ~neg_subset == subset
-        if isinstance(subset, SubsetRangeUnion):
-            assert isinstance(neg_subset, SubsetRangeUnion)
+        if isinstance(subset, RangeUnionSubset):
+            assert isinstance(neg_subset, RangeUnionSubset)
         elif isinstance(subset, SubsetComplement):
             assert neg_subset is subset.subset
         else:
@@ -336,15 +336,14 @@ class TestSubset:
         assert subset ^ neg_subset == universe_subset
 
     def test_empty_subset(self):
-        assert type(empty_subset) is SubsetStatic
+        assert type(empty_subset) is Subset
         assert len(empty_subset) == 0
-        self._test_subset(empty_subset)
         assert ~empty_subset == universe_subset
+        self._test_base_subset(empty_subset)
 
     def test_universe_subset(self):
-        assert type(universe_subset) is SubsetStatic
+        assert type(universe_subset) is Subset
         assert len(universe_subset) == TEST_UNIVERSE_MAX + 1
-        self._test_subset(universe_subset)
         assert 0 in universe_subset
         assert TEST_UNIVERSE_MAX in universe_subset
         assert {0, 1, TEST_UNIVERSE_MAX} < universe_subset
@@ -352,9 +351,18 @@ class TestSubset:
         assert len(~universe_subset) == 0
         assert set(~universe_subset) == set()
         assert ~universe_subset == empty_subset
+        self._test_base_subset(universe_subset)
+
+    def test_filter_subset(self):
+        subset = FilterSubset(TEST_RANGE, lambda i: i < 5)  # type: ignore[operator]
+        assert len(subset) == 5
+        assert 0 in subset
+        assert 5 not in subset
+        assert set(subset) == set(range(5))
+        self._test_base_subset(subset)
 
     def test_range_union_example(self):
-        subset = SubsetRangeUnion(TEST_RANGE, [range(5, 10), range(15, 20)])
+        subset = RangeUnionSubset(TEST_RANGE, [range(5, 10), range(15, 20)])
         assert len(subset) == 10
         assert 5 in subset
         assert 10 not in subset
@@ -362,7 +370,7 @@ class TestSubset:
         assert 20 not in subset
         assert subset.universe == TEST_UNIVERSE
         assert subset.elements == {5, 6, 7, 8, 9, 15, 16, 17, 18, 19}
-        self._test_subset(subset)
+        self._test_base_subset(subset)
 
     @pytest.mark.parametrize(['ranges', 'error'], [
         (
@@ -392,7 +400,7 @@ class TestSubset:
     ])
     def test_range_union_invalid_bounds(self, ranges, error):
         with pytest.raises(ValueError, match=error):
-            _ = SubsetRangeUnion(range(100), ranges)
+            _ = RangeUnionSubset(range(100), ranges)
 
     @pytest.mark.parametrize('ranges', [
         # disjoint but unsorted
@@ -409,18 +417,18 @@ class TestSubset:
     ])
     def test_range_union_unsorted_or_overlapping_ranges(self, ranges):
         with pytest.raises(ValueError, match='(ranges must be sorted and not overlap)|(cannot have start >= stop)'):
-            _ = SubsetRangeUnion(TEST_RANGE, ranges)
-        subset = SubsetRangeUnion.from_ranges(TEST_RANGE, ranges)
-        self._test_subset(subset)
+            _ = RangeUnionSubset(TEST_RANGE, ranges)
+        subset = RangeUnionSubset.from_ranges(TEST_RANGE, ranges)
+        self._test_base_subset(subset)
 
     def test_subset_mapped(self):
         base_subset = subset_static({0, 1, 2, 3, 4})
-        subset = SubsetMapped(base_subset, lambda i: i % 3)
+        subset = MappedSubset(base_subset, lambda i: i % 3)
         assert 1 in subset
         assert 3 not in subset
         assert subset.universe == {0, 1, 2}
         assert set(subset) == {0, 1, 2}
-        subset = SubsetMapped(base_subset, lambda i: i % 3)
+        subset = MappedSubset(base_subset, lambda i: i % 3)
 
     def test_subset_iso_mapped(self):
         base_subset = subset_static({0, 1, 2})
@@ -429,7 +437,7 @@ class TestSubset:
             if not isinstance(s, str):
                 raise TypeError('input must be a string')
             return int(s)
-        subset = SubsetIsoMapped(base_subset, str, _safe_int)
+        subset = IsoMappedSubset(base_subset, str, _safe_int)
         assert '1' in subset
         assert 1 not in subset
         assert list(subset) == ['0', '1', '2']
@@ -441,7 +449,7 @@ class TestSubset:
         assert len(neg_subset) == TEST_UNIVERSE_SIZE - 3
         assert neg_subset < subset.universe
         # one-to-one on the proper domain, but __contains__ can cause issues if querying an element not in the universe
-        subset = SubsetIsoMapped(base_subset, str, int)
+        subset = IsoMappedSubset(base_subset, str, int)
         assert '1' in subset
         assert 1 in subset  # danger!
         assert list(subset) == ['0', '1', '2']
@@ -449,7 +457,7 @@ class TestSubset:
         assert subset.universe == set(map(str, TEST_UNIVERSE))
         assert set(subset) == {'0', '1', '2'}
         # invalid one-to-one-mapping
-        subset = SubsetIsoMapped(base_subset, lambda i: i // 2, lambda i: i * 2)  # type: ignore
+        subset = IsoMappedSubset(base_subset, lambda i: i // 2, lambda i: i * 2)  # type: ignore
         assert 0 in subset
         assert 1 in subset
         assert 2 not in subset
@@ -526,12 +534,12 @@ class TestSubset:
 
     @pytest.mark.parametrize(['subset1', 'subset2'], [
         (
-            SubsetStatic(set(range(5)), {0, 1, 2}),
-            SubsetStatic(set(range(6)), {0, 1, 2}),
+            Subset(set(range(5)), {0, 1, 2}),
+            Subset(set(range(6)), {0, 1, 2}),
         ),
         (
-            SubsetRangeUnion(range(5), [range(3)]),
-            SubsetRangeUnion(range(6), [range(3)]),
+            RangeUnionSubset(range(5), [range(3)]),
+            RangeUnionSubset(range(6), [range(3)]),
         ),
     ])
     def test_boolean_operator_universe_mismatch(self, subset1, subset2):
@@ -544,19 +552,19 @@ class TestSubset:
 
     @given(subsets_static())
     def test_subset_static_generic(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
 
     @given(subsets_dynamic())
     def test_subset_dynamic_generic(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
 
     @given(subsets_range_union())
     def test_unicode_ranges_generic(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
 
     @given(subset_intersections(subsets_static()))
     def test_subset_intersection(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
         if not subset.subsets:
             assert subset.elements is TEST_UNIVERSE
         assert all(subset <= component for component in subset.subsets)
@@ -565,7 +573,7 @@ class TestSubset:
 
     @given(subset_unions(subsets_static()))
     def test_subset_union(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
         if not subset.subsets:
             assert subset.elements == set()
         assert all(component <= subset for component in subset.subsets)
@@ -574,7 +582,7 @@ class TestSubset:
     @given(subsets())
     @settings(deadline=None)
     def test_subset_generic(self, subset):
-        self._test_subset(subset)
+        self._test_base_subset(subset)
 
 
 ARITH_SAFE_NODE_TYPES = BOOLEAN_SAFE_NODE_TYPES | {
@@ -599,8 +607,8 @@ def _get_set(name: str) -> set[int]:
 small_universe = {1, 2, 3, 4, 5}
 
 def example_interpret(expr: str) -> BaseSubset[int]:
-    def eval_name(name: str) -> SubsetStatic[int]:
-        return SubsetStatic(small_universe, _get_set(name))
+    def eval_name(name: str) -> Subset[int]:
+        return Subset(small_universe, _get_set(name))
     return safe_eval_boolean_expr(expr, eval_name)
 
 
@@ -748,12 +756,12 @@ class TestInterpretation:
     @pytest.mark.parametrize(['expr', 'output_type', 'output_set'], [
         (
             'A',
-            SubsetStatic,
+            Subset,
             {1, 2, 3},
         ),
         (
             '(((A)))',
-            SubsetStatic,
+            Subset,
             {1, 2, 3},
         ),
         (
@@ -763,7 +771,7 @@ class TestInterpretation:
         ),
         (
             '~~A',
-            SubsetStatic,
+            Subset,
             {1, 2, 3}
         ),
         (

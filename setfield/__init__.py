@@ -92,12 +92,12 @@ class BaseSubset(Set[T]):
             _check_universes_match(self, other)
             return SubsetIntersection(self.universe, [self, other])
         if isinstance(other, set):
-            return SubsetIntersection(self.universe, [self, SubsetStatic(self.universe, other)])
+            return SubsetIntersection(self.universe, [self, Subset(self.universe, other)])
         return NotImplemented
 
     def __rand__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
-            return SubsetStatic(self.universe, other) & self
+            return Subset(self.universe, other) & self
         return NotImplemented
 
     def __or__(self, other: object) -> BaseSubset[T]:
@@ -105,12 +105,12 @@ class BaseSubset(Set[T]):
             _check_universes_match(self, other)
             return SubsetUnion(self.universe, [self, other])
         if isinstance(other, set):
-            return SubsetUnion(self.universe, [self, SubsetStatic(self.universe, other)])
+            return SubsetUnion(self.universe, [self, Subset(self.universe, other)])
         return NotImplemented
 
     def __ror__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
-            return SubsetStatic(self.universe, other) | self
+            return Subset(self.universe, other) | self
         return NotImplemented
 
     def __invert__(self) -> BaseSubset[T]:
@@ -121,12 +121,12 @@ class BaseSubset(Set[T]):
             _check_universes_match(self, other)
             return self & ~other
         if isinstance(other, set):
-            return self & ~(SubsetStatic(self.universe, other))
+            return self & ~(Subset(self.universe, other))
         return NotImplemented
 
     def __rsub__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
-            return SubsetStatic(self.universe, other) - self
+            return Subset(self.universe, other) - self
         return NotImplemented
 
     def __xor__(self, other: object) -> BaseSubset[T]:
@@ -146,42 +146,49 @@ class ConcreteSubset(BaseSubset[T]):
 
     _universe: set[T] = field(repr=False)
 
+    def __init__(self, universe: Iterable[T]) -> None:
+        self._universe = universe if isinstance(universe, set) else set(universe)
+
     def _get_universe(self) -> set[T]:
         return self._universe
 
 
 @dataclass(eq=False)
-class SubsetStatic(ConcreteSubset[T]):
+class Subset(ConcreteSubset[T]):
     """A concrete subset which stores the universe and the subset explicitly as sets."""
 
     _elements: set[T]
 
-    def __init__(self, universe: set[T], elements: Iterable[T]) -> None:
-        self._universe = universe
+    def __init__(self, universe: Iterable[T], elements: Iterable[T]) -> None:
+        super().__init__(universe)
         self._elements = elements if isinstance(elements, set) else set(elements)
 
     def _get_elements(self) -> set[T]:
         return self._elements
 
     @classmethod
-    def empty(cls, universe: set[T]) -> SubsetStatic[T]:
-        """Constructor which, given the universe, returns a SubsetStatic representing the empty subset.
+    def empty(cls, universe: set[T]) -> Subset[T]:
+        """Constructor which, given the universe, returns a Subset representing the empty subset.
         This is also called the "bottom" element of the field of sets."""
         return cls(universe, set())
 
     @classmethod
-    def full(cls, universe: set[T]) -> SubsetStatic[T]:
-        """Constructor which, given the universe, returns a SubsetStatic representing the whole universe.
+    def full(cls, universe: set[T]) -> Subset[T]:
+        """Constructor which, given the universe, returns a Subset representing the whole universe.
         This is also called the "top" element of the field of sets."""
         return cls(universe, universe)
 
 
 @dataclass(eq=False)
-class SubsetDynamic(ConcreteSubset[T]):
+class DynamicSubset(ConcreteSubset[T]):
     """A subset which stores the universe concretely but computes the subset lazily via a callable.
     The first time the subset is computed, it is stored on the object and then reused."""
 
     get_elements: Callable[[], Iterable[T]]
+
+    def __init__(self, universe: Iterable[T], get_elements: Callable[[], Iterable[T]]) -> None:
+        super().__init__(universe)
+        self.get_elements = get_elements
 
     def _get_elements(self) -> set[T]:
         elements = self.get_elements()
@@ -189,18 +196,22 @@ class SubsetDynamic(ConcreteSubset[T]):
 
 
 @dataclass(eq=False)
-class SubsetFilter(ConcreteSubset[T]):
+class FilterSubset(ConcreteSubset[T]):
     """A subset which stores the universe concretely but uses a (callable) predicate to determine if an element is in the subset.
     This can sometimes be more efficient than computing the full set, especially when there are a large number of different subsets to deal with."""
 
-    pred: Callable[[object], bool]
+    predicate: Callable[[object], bool]
+
+    def __init__(self, universe: Iterable[T], predicate: Callable[[object], bool]) -> None:
+        super().__init__(universe)
+        self.predicate = predicate
 
     def _get_elements(self) -> set[T]:
-        return set(filter(self.pred, self._universe))
+        return set(filter(self.predicate, self._universe))
 
     def __contains__(self, item: object) -> bool:
         # NOTE: pred may have to evaluate things that are not of type T
-        return self.pred(item)
+        return self.predicate(item)
 
 
 #######################
@@ -208,7 +219,7 @@ class SubsetFilter(ConcreteSubset[T]):
 #######################
 
 @dataclass(eq=False)
-class SubsetComplement(SubsetFilter[T]):
+class SubsetComplement(FilterSubset[T]):
     """A subset which is a complement of another subset.
     This stores the original subset as a `subset` field.
     Set membership is computed as the negation of membership in the inner subset."""
@@ -377,7 +388,7 @@ def _check_universe_ranges_match(universe_range1: range, universe_range2: range)
 
 
 @dataclass(eq=False)
-class SubsetRangeUnion(BaseSubset[int]):
+class RangeUnionSubset(BaseSubset[int]):
     """A subset of an integer universe, represented as a disjoint union of sorted ranges.
     This is often a more efficient data structure than a set for enumeration and membership checks, as it can be much more compact when there are a lot of contiguous elements in the subset."""
 
@@ -399,7 +410,7 @@ class SubsetRangeUnion(BaseSubset[int]):
                 raise ValueError('ranges must be sorted and not overlap')
 
     @classmethod
-    def from_ranges(cls, universe_range: range, ranges: Ranges) -> SubsetRangeUnion:
+    def from_ranges(cls, universe_range: range, ranges: Ranges) -> RangeUnionSubset:
         """Convenience constructor from a universe range and list of ranges, not necessarily sorted or disjoint."""
         return cls(universe_range, _ranges_union([ranges]))
 
@@ -425,20 +436,20 @@ class SubsetRangeUnion(BaseSubset[int]):
         return set(self.__iter__())
 
     def __and__(self, other: object) -> BaseSubset[int]:
-        if isinstance(other, SubsetRangeUnion):
+        if isinstance(other, RangeUnionSubset):
             _check_universe_ranges_match(self._universe_range, other._universe_range)
             intersection_ranges = _ranges_intersection(self._universe_range, [self.ranges, other.ranges])
             return type(self)(self._universe_range, intersection_ranges)
         return super().__and__(other)
 
     def __or__(self, other: object) -> BaseSubset[int]:
-        if isinstance(other, SubsetRangeUnion):
+        if isinstance(other, RangeUnionSubset):
             _check_universe_ranges_match(self._universe_range, other._universe_range)
             union_ranges = _ranges_union([self.ranges, other.ranges])
             return type(self)(self._universe_range, union_ranges)
         return super().__or__(other)
 
-    def __invert__(self) -> SubsetRangeUnion:
+    def __invert__(self) -> RangeUnionSubset:
         return type(self)(self._universe_range, _ranges_complement(self._universe_range, self.ranges))
 
 
@@ -447,7 +458,7 @@ class SubsetRangeUnion(BaseSubset[int]):
 ####################
 
 @dataclass(eq=False)
-class SubsetMapped(BaseSubset[T], Generic[S, T]):
+class MappedSubset(BaseSubset[T], Generic[S, T]):
     """A subset formed by mapping a function, `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
     The function need not be one-to-one, and the function will need to be applied to all elements to determine the new set."""
@@ -463,8 +474,8 @@ class SubsetMapped(BaseSubset[T], Generic[S, T]):
 
 
 @dataclass(eq=False)
-class SubsetIsoMapped(SubsetMapped[S, T]):
-    """A subset formed by mapping a one-to-one function, `map_func`, onto a base subset.
+class IsoMappedSubset(MappedSubset[S, T]):
+    """A subset formed by mapping a one-to-one function (isomorphism), `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
     Additionally, the *inverse* of `map_func`, `map_func_inv` should be provided, since it will be used to check set membership without having to map all the base set elements themselves.
     In order for things to work properly, the assumed properties must hold that `map_func` and `map_func_inv` are one-to-one and inverses of each other."""
