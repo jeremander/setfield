@@ -11,7 +11,7 @@ import hypothesis.strategies as st
 import pytest
 
 import setfield
-from setfield import BOOLEAN_SAFE_NODE_TYPES, Subset, SubsetComplement, SubsetDynamic, SubsetIntersection, SubsetIsoMapped, SubsetMapped, SubsetRangeUnion, SubsetStatic, SubsetUnion, indices_to_minimal_ranges, safe_eval, safe_eval_boolean_expr
+from setfield import BOOLEAN_SAFE_NODE_TYPES, BaseSubset, SubsetComplement, SubsetDynamic, SubsetIntersection, SubsetIsoMapped, SubsetMapped, SubsetRangeUnion, SubsetStatic, SubsetUnion, indices_to_minimal_ranges, safe_eval, safe_eval_boolean_expr
 
 
 T = TypeVar('T')
@@ -284,7 +284,7 @@ class TestSubset:
         """Tests properties that should hold for every Subset."""
         with suppress(hypothesis.errors.InvalidArgument):
             event(f'type: {type(subset).__name__}')
-        assert isinstance(subset, Subset)
+        assert isinstance(subset, BaseSubset)
         assert subset == subset
         assert subset != 123
         elements = subset.elements
@@ -598,7 +598,7 @@ def _get_set(name: str) -> set[int]:
 
 small_universe = {1, 2, 3, 4, 5}
 
-def example_interpret(expr: str) -> Subset[int]:
+def example_interpret(expr: str) -> BaseSubset[int]:
     def eval_name(name: str) -> SubsetStatic[int]:
         return SubsetStatic(small_universe, _get_set(name))
     return safe_eval_boolean_expr(expr, eval_name)

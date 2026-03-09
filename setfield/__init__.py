@@ -27,7 +27,7 @@ Ranges: TypeAlias = Sequence[range]
 #################
 
 @total_ordering
-class Subset(Set[T]):
+class BaseSubset(Set[T]):
     """Abstract base class representing a subset of some ambient universe set."""
 
     @abstractmethod
@@ -58,7 +58,7 @@ class Subset(Set[T]):
         return len(self.elements)
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, Subset):
+        if isinstance(other, BaseSubset):
             # check universe and setwise equality, even if the representation is different
             return (self.universe == other.universe) and (self.elements == other.elements)
         if isinstance(other, set):
@@ -67,7 +67,7 @@ class Subset(Set[T]):
         return False
 
     def _compare(self, cmp: Callable[[set[T], set[T]], bool], other: object) -> bool:
-        if isinstance(other, Subset):
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             return cmp(self.elements, other.elements)
         if isinstance(other, set):
@@ -87,53 +87,53 @@ class Subset(Set[T]):
     def __ge__(self, other: object) -> bool:
         return self._compare(operator.ge, other)
 
-    def __and__(self, other: object) -> Subset[T]:
-        if isinstance(other, Subset):
+    def __and__(self, other: object) -> BaseSubset[T]:
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             return SubsetIntersection(self.universe, [self, other])
         if isinstance(other, set):
             return SubsetIntersection(self.universe, [self, SubsetStatic(self.universe, other)])
         return NotImplemented
 
-    def __rand__(self, other: object) -> Subset[T]:
+    def __rand__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
             return SubsetStatic(self.universe, other) & self
         return NotImplemented
 
-    def __or__(self, other: object) -> Subset[T]:
-        if isinstance(other, Subset):
+    def __or__(self, other: object) -> BaseSubset[T]:
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             return SubsetUnion(self.universe, [self, other])
         if isinstance(other, set):
             return SubsetUnion(self.universe, [self, SubsetStatic(self.universe, other)])
         return NotImplemented
 
-    def __ror__(self, other: object) -> Subset[T]:
+    def __ror__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
             return SubsetStatic(self.universe, other) | self
         return NotImplemented
 
-    def __invert__(self) -> Subset[T]:
+    def __invert__(self) -> BaseSubset[T]:
         return SubsetComplement(self)
 
-    def __sub__(self, other: object) -> Subset[T]:
-        if isinstance(other, Subset):
+    def __sub__(self, other: object) -> BaseSubset[T]:
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             return self & ~other
         if isinstance(other, set):
             return self & ~(SubsetStatic(self.universe, other))
         return NotImplemented
 
-    def __rsub__(self, other: object) -> Subset[T]:
+    def __rsub__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, set):
             return SubsetStatic(self.universe, other) - self
         return NotImplemented
 
-    def __xor__(self, other: object) -> Subset[T]:
+    def __xor__(self, other: object) -> BaseSubset[T]:
         return (self | other) - (self & other)
 
 
-def _check_universes_match(subset1: Subset[T], subset2: Subset[T]) -> None:
+def _check_universes_match(subset1: BaseSubset[T], subset2: BaseSubset[T]) -> None:
     """Checks whether the universes of two Subsets match.
     If not, raises a ValueError."""
     if subset1.universe != subset2.universe:
@@ -141,7 +141,7 @@ def _check_universes_match(subset1: Subset[T], subset2: Subset[T]) -> None:
 
 
 @dataclass(eq=False)
-class ConcreteSubset(Subset[T]):
+class ConcreteSubset(BaseSubset[T]):
     """Base class for a concrete subset where the universe is stored explicitly as a set."""
 
     _universe: set[T] = field(repr=False)
@@ -213,9 +213,9 @@ class SubsetComplement(SubsetFilter[T]):
     This stores the original subset as a `subset` field.
     Set membership is computed as the negation of membership in the inner subset."""
 
-    subset: Subset[T]
+    subset: BaseSubset[T]
 
-    def __init__(self, subset: Subset[T]) -> None:
+    def __init__(self, subset: BaseSubset[T]) -> None:
         pred = lambda elt: elt not in subset
         super().__init__(subset.universe, pred)
         self.subset = subset
@@ -223,7 +223,7 @@ class SubsetComplement(SubsetFilter[T]):
     def __len__(self) -> int:
         return len(self.universe) - len(self.subset)
 
-    def __invert__(self) -> Subset[T]:
+    def __invert__(self) -> BaseSubset[T]:
         # apply law of double negation
         return self.subset
 
@@ -234,7 +234,7 @@ class SubsetIntersection(ConcreteSubset[T]):
     This stores a list of subsets to intersect as a `subsets` field.
     Set membership is computed as the logical conjuction (AND) of membership in all of the inner subsets."""
 
-    subsets: list[Subset[T]]
+    subsets: list[BaseSubset[T]]
 
     @cached_property
     def _length_sort_indices(self) -> list[int]:
@@ -259,7 +259,7 @@ class SubsetIntersection(ConcreteSubset[T]):
         return all(item in subset for subset in self.subsets)
 
     def __and__(self, other: object) -> SubsetIntersection[T]:
-        if isinstance(other, Subset):
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             if isinstance(other, SubsetIntersection):
                 return type(self)(self.universe, self.subsets + other.subsets)
@@ -273,7 +273,7 @@ class SubsetUnion(ConcreteSubset[T]):
     This stores a list of subsets to union as a `subsets` field.
     Set membership is computed as the logical disjunction (OR) of membership in all of the inner subsets."""
 
-    subsets: list[Subset[T]]
+    subsets: list[BaseSubset[T]]
 
     def _get_elements(self) -> set[T]:
         if not self.subsets:
@@ -284,7 +284,7 @@ class SubsetUnion(ConcreteSubset[T]):
         return any(item in cs for cs in self.subsets)
 
     def __or__(self, other: object) -> SubsetUnion[T]:
-        if isinstance(other, Subset):
+        if isinstance(other, BaseSubset):
             _check_universes_match(self, other)
             if isinstance(other, SubsetUnion):
                 return type(self)(self.universe, self.subsets + other.subsets)
@@ -377,7 +377,7 @@ def _check_universe_ranges_match(universe_range1: range, universe_range2: range)
 
 
 @dataclass(eq=False)
-class SubsetRangeUnion(Subset[int]):
+class SubsetRangeUnion(BaseSubset[int]):
     """A subset of an integer universe, represented as a disjoint union of sorted ranges.
     This is often a more efficient data structure than a set for enumeration and membership checks, as it can be much more compact when there are a lot of contiguous elements in the subset."""
 
@@ -424,14 +424,14 @@ class SubsetRangeUnion(Subset[int]):
     def _get_elements(self) -> set[int]:
         return set(self.__iter__())
 
-    def __and__(self, other: object) -> Subset[int]:
+    def __and__(self, other: object) -> BaseSubset[int]:
         if isinstance(other, SubsetRangeUnion):
             _check_universe_ranges_match(self._universe_range, other._universe_range)
             intersection_ranges = _ranges_intersection(self._universe_range, [self.ranges, other.ranges])
             return type(self)(self._universe_range, intersection_ranges)
         return super().__and__(other)
 
-    def __or__(self, other: object) -> Subset[int]:
+    def __or__(self, other: object) -> BaseSubset[int]:
         if isinstance(other, SubsetRangeUnion):
             _check_universe_ranges_match(self._universe_range, other._universe_range)
             union_ranges = _ranges_union([self.ranges, other.ranges])
@@ -447,12 +447,12 @@ class SubsetRangeUnion(Subset[int]):
 ####################
 
 @dataclass(eq=False)
-class SubsetMapped(Subset[T], Generic[S, T]):
+class SubsetMapped(BaseSubset[T], Generic[S, T]):
     """A subset formed by mapping a function, `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
     The function need not be one-to-one, and the function will need to be applied to all elements to determine the new set."""
 
-    base_subset: Subset[S]
+    base_subset: BaseSubset[S]
     map_func: Callable[[S], T]
 
     def _get_universe(self) -> set[T]:
