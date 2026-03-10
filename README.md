@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://raw.githubusercontent.com/jeremander/setfield/refs/heads/main/LICENSE)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
-<img src="logo.svg" width="250" alt="Setfield logo (a baseball field with bases numbered in von Neumann ordinal notation"/>
+<img src="logo.svg" width="350" alt="Setfield logo (a baseball field with bases numbered in von Neumann ordinal notation"/>
 
 **Setfield** is a small Python library providing a framework for expressing a [field of sets](https://en.wikipedia.org/wiki/Field_of_sets) construction. Also known as a (Boolean) *set algebra*, this represents the common notion of "overlapping subsets," with the ability to perform setwise operations like union, intersection, and complement.
 

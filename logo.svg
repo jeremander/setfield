@@ -1,25 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -76 88 80" width="600" height="600" font-family="Georgia, 'Times New Roman', serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -67 88 70" width="629" height="500" font-family="Georgia, 'Times New Roman', serif">
 
   <style>
-    .title { fill: #c4af6f; }
+    <!-- .title { fill: #c4af6f; } -->
     .background { fill: #294a75; }
     .grass { fill: #6ab06a; }
     .dirt { fill: #d4a574; }
     .label { fill: "#505050"; text-anchor: middle; font-family: 'Georgia' }
   </style>
 
-  <defs>
+  <!-- <defs>
     <style>
-      <!-- @import url('https://fonts.googleapis.com/css2?family=Cinzel'); -->
-      <!-- @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800'); -->
       @import url('https://fonts.googleapis.com/css2?family=Marcellus');
-      @import url('https://fonts.googleapis.com/css2?family='Noto Sans Math');
     </style>
-  </defs>
+  </defs> -->
 
   <!-- ===================== BACKGROUND ===================== -->
   <!-- <rect x="-44" y="-85" width="88" height="88" fill="#f5f2eb"/> -->
-  <rect x="-44" y="-73" width="88" height="76" class="background"/>
+  <rect x="-44" y="-67" width="88" height="70" class="background"/>
 
   <!-- ===================== OUTER SECTOR: GRASS ===================== -->
 
@@ -80,6 +77,6 @@
 
   <!-- ===================== TITLE ===================== -->
 
-  <text x="0" y="-63" text-anchor="middle" class="title" font-family="Marcellus, Arial" font-size="9" font-weight="bold">FIELD OF SETS</text>
+  <!-- <text x="0" y="-63" text-anchor="middle" class="title" font-family="Marcellus, Arial" font-size="9" font-weight="bold">FIELD OF SETS</text> -->
 
 </svg>
