@@ -96,26 +96,29 @@ If we're concerned with integer subsets, there is a `RangeUnionSubset` data stru
 As an example:
 
 ```python
->>> from setfield import RangeUnionSubset
+from setfield import RangeUnionSubset
 
->>> subset = RangeUnionSubset(range(100), [range(0, 10), range(50, 75)])
+subset = RangeUnionSubset(range(100), [range(0, 10), range(50, 75)])
 
->>> assert len(subset) == 35
->>> assert 9 in subset
->>> assert 20 not in subset
->>> assert 55 in subset
+assert len(subset) == 35
+assert 9 in subset
+assert 20 not in subset
+assert 55 in subset
 
 # complement is calculated efficiently
->>> print(~subset)
+print(~subset)
 RangeUnionSubset(universe_range=range(0, 100), ranges=[range(10, 50), range(75, 100)])
 
 # likewise with intersections, unions, and differences
->>> subset2 = RangeUnionSubset(range(100), [range(40, 60)])
->>> print(subset & subset2)
+subset2 = RangeUnionSubset(range(100), [range(40, 60)])
+
+print(subset & subset2)
 RangeUnionSubset(universe_range=range(0, 100), ranges=[range(50, 60)])
->>> print(subset | subset2)
+
+print(subset | subset2)
 RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(40, 75)])
->>> print(subset - subset2)
+
+print(subset - subset2)
 RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(60, 75)])
 ```
 
