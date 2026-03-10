@@ -1,20 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -90 100 100" width="500" height="500" font-family="Georgia, 'Times New Roman', serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -77 88 80" width="500" height="500" font-family="Georgia, 'Times New Roman', serif">
 
   <style>
+    .title { fill: #c4af6f; }
+    .background { fill: #294a75; }
     .grass { fill: #6ab06a; }
     .dirt { fill: #d4a574; }
-    .label { fill: "#505050"; text-anchor: middle; font-size: 3.5 }
+    .label { fill: "#505050"; text-anchor: middle; font-size: 3.5; font-family: 'Georgia' }
   </style>
 
+  <defs>
+    <style>
+      <!-- @import url('https://fonts.googleapis.com/css2?family=Cinzel'); -->
+      <!-- @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800'); -->
+      @import url('https://fonts.googleapis.com/css2?family=Marcellus');
+      @import url('https://fonts.googleapis.com/css2?family='Noto Sans Math');
+    </style>
+  </defs>
+
   <!-- ===================== BACKGROUND ===================== -->
-  <rect x="-50" y="-90" width="100" height="100" fill="#f5f2eb"/>
+  <!-- <rect x="-44" y="-85" width="88" height="88" fill="#f5f2eb"/> -->
+  <rect x="-44" y="-77" width="88" height="80" class="background"/>
 
   <!-- ===================== OUTER SECTOR: GRASS ===================== -->
 
   <path d="
     M 0 0
-    L -48 -48
-    A 67.88 67.88 0 0 1 48 -48
+    L -42 -42
+    A 59.40 59.40 0 0 1 42 -42
     Z
 " class="grass"/>
 
@@ -40,25 +52,25 @@
   <!-- HOME PLATE (pentagon, bottom) -->
   <circle cx="0" cy="-3" r="4" class="dirt"/>
   <polygon points="0,-1 -1.5,-2.5 -1.5,-4 1.5,-4 1.5,-2.5" fill="white" stroke="#999" stroke-width="0.25"/>
-  <text x="0" y="-6" class="label" font-size="4.25">∅</text>
+  <text x="0" y="-5.5" class="label" font-size="4.25">∅</text>
   <!-- <text x="0" y="-6" class="label" font-size="3.5">{}</text> -->
 
   <!-- FIRST BASE (right), rotated square -->
   <circle cx="14" cy="-20" r="4" class="dirt"/>
   <rect x="12.5" y="-21.5" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 14 -20)"/>
-  <text x="14" y="-23.5" class="label" font-size="3.5">{∅}</text>
+  <text x="14.25" y="-23.5" class="label" font-size="3.5">{∅}</text>
   <!-- <text x="14" y="-23.5" class="label" font-size="3.5">{{}}</text> -->
 
   <!-- SECOND BASE (top), rotated square -->
   <circle cx="0" cy="-34.5" r="4" class="dirt"/>
   <rect x="-1.5" y="-36" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 0 -34.5)"/>
-  <text x="0" y="-38.5" class="label" font-size="3.5">{∅, {∅}}</text>
+  <text x="0" y="-38.25" class="label" font-size="3.5">{∅, {∅}}</text>
   <!-- <text x="0" y="-38.5" class="label" font-size="3.5">{{}, {{}}}</text> -->
 
   <!-- THIRD BASE (left), rotated square-->
   <circle cx="-14" cy="-20" r="4" class="dirt"/>
   <rect x="-15.5" y="-21.5" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 -14 -20)"/>
-  <text x="-9.5" y="-23.5" class="label" font-size="3.5">{∅, {∅}, {∅, {∅}}}</text>
+  <text x="-9" y="-23.5" class="label" font-size="3.5">{∅, {∅}, {∅, {∅}}}</text>
   <!-- <text x="-15" y="-23.5" class="label" font-size="3.5">{{}, {{}}, {{}, {{}}}}</text> -->
 
   <!-- ===================== FOUL LINES ===================== -->
@@ -66,11 +78,8 @@
   <!-- <line x1="-3" y1="-8.5" x2="-47.5" y2="-53" stroke="white" stroke-width="0.5" opacity="0.8"/>
   <line x1="3" y1="-8.5" x2="47.5" y2="-53" stroke="white" stroke-width="0.5" opacity="0.8"/> -->
 
-  <!-- ===================== PLATE LABELS ===================== -->
+  <!-- ===================== TITLE ===================== -->
 
-  <!-- SECOND BASE (top): {∅, {∅}} -->
-  <text x="250" y="302" text-anchor="middle" font-size="13" fill="#333" font-weight="bold">{∅, {∅}}</text>
-
-
+  <text x="0" y="-65" text-anchor="middle" class="title" font-family="Marcellus, Arial" font-size="9" font-weight="bold">FIELD OF SETS</text>
 
 </svg>
