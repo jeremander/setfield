@@ -107,19 +107,19 @@ assert 55 in subset
 
 # complement is calculated efficiently
 print(~subset)
-RangeUnionSubset(universe_range=range(0, 100), ranges=[range(10, 50), range(75, 100)])
+# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(10, 50), range(75, 100)])
 
 # likewise with intersections, unions, and differences
 subset2 = RangeUnionSubset(range(100), [range(40, 60)])
 
 print(subset & subset2)
-RangeUnionSubset(universe_range=range(0, 100), ranges=[range(50, 60)])
+# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(50, 60)])
 
 print(subset | subset2)
-RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(40, 75)])
+# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(40, 75)])
 
 print(subset - subset2)
-RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(60, 75)])
+# RangeUnionSubset(universe_range=range(0, 100), ranges=[range(0, 10), range(60, 75)])
 ```
 
 ## License
