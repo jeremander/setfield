@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -77 88 80" width="500" height="500" font-family="Georgia, 'Times New Roman', serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -76 88 80" width="600" height="600" font-family="Georgia, 'Times New Roman', serif">
 
   <style>
     .title { fill: #c4af6f; }
     .background { fill: #294a75; }
     .grass { fill: #6ab06a; }
     .dirt { fill: #d4a574; }
-    .label { fill: "#505050"; text-anchor: middle; font-size: 3.5; font-family: 'Georgia' }
+    .label { fill: "#505050"; text-anchor: middle; font-family: 'Georgia' }
   </style>
 
   <defs>
@@ -19,7 +19,7 @@
 
   <!-- ===================== BACKGROUND ===================== -->
   <!-- <rect x="-44" y="-85" width="88" height="88" fill="#f5f2eb"/> -->
-  <rect x="-44" y="-77" width="88" height="80" class="background"/>
+  <rect x="-44" y="-73" width="88" height="76" class="background"/>
 
   <!-- ===================== OUTER SECTOR: GRASS ===================== -->
 
@@ -52,25 +52,25 @@
   <!-- HOME PLATE (pentagon, bottom) -->
   <circle cx="0" cy="-3" r="4" class="dirt"/>
   <polygon points="0,-1 -1.5,-2.5 -1.5,-4 1.5,-4 1.5,-2.5" fill="white" stroke="#999" stroke-width="0.25"/>
-  <text x="0" y="-5.5" class="label" font-size="4.25">∅</text>
+  <text x="0" y="-5.5" class="label" font-size="5">∅</text>
   <!-- <text x="0" y="-6" class="label" font-size="3.5">{}</text> -->
 
   <!-- FIRST BASE (right), rotated square -->
   <circle cx="14" cy="-20" r="4" class="dirt"/>
   <rect x="12.5" y="-21.5" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 14 -20)"/>
-  <text x="14.25" y="-23.5" class="label" font-size="3.5">{∅}</text>
+  <text x="14.25" y="-23.8" class="label" font-size="4">{∅}</text>
   <!-- <text x="14" y="-23.5" class="label" font-size="3.5">{{}}</text> -->
 
   <!-- SECOND BASE (top), rotated square -->
   <circle cx="0" cy="-34.5" r="4" class="dirt"/>
   <rect x="-1.5" y="-36" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 0 -34.5)"/>
-  <text x="0" y="-38.25" class="label" font-size="3.5">{∅, {∅}}</text>
+  <text x="0" y="-38.25" class="label" font-size="4">{∅, {∅}}</text>
   <!-- <text x="0" y="-38.5" class="label" font-size="3.5">{{}, {{}}}</text> -->
 
   <!-- THIRD BASE (left), rotated square-->
   <circle cx="-14" cy="-20" r="4" class="dirt"/>
   <rect x="-15.5" y="-21.5" width="3" height="3" rx="0.25" fill="white" stroke="#999" stroke-width="0.25" transform="rotate(45 -14 -20)"/>
-  <text x="-9" y="-23.5" class="label" font-size="3.5">{∅, {∅}, {∅, {∅}}}</text>
+  <text x="-8.5" y="-24" class="label" font-size="3.7">{∅, {∅}, {∅, {∅}}}</text>
   <!-- <text x="-15" y="-23.5" class="label" font-size="3.5">{{}, {{}}, {{}, {{}}}}</text> -->
 
   <!-- ===================== FOUL LINES ===================== -->
@@ -80,6 +80,6 @@
 
   <!-- ===================== TITLE ===================== -->
 
-  <text x="0" y="-65" text-anchor="middle" class="title" font-family="Marcellus, Arial" font-size="9" font-weight="bold">FIELD OF SETS</text>
+  <text x="0" y="-63" text-anchor="middle" class="title" font-family="Marcellus, Arial" font-size="9" font-weight="bold">FIELD OF SETS</text>
 
 </svg>
