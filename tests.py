@@ -384,6 +384,31 @@ class TestSubset:
         assert ~universe_subset == empty_subset
         self._test_base_subset(universe_subset)
 
+    def test_infinite_universe(self):
+        subset = Subset(None, {0, 1, 2})
+        assert set(subset) == {0, 1, 2}
+        assert len(subset) == 3
+        neg_subset = ~subset
+        with pytest.raises(ValueError, match='cannot get length of infinite universe'):
+            _ = len(neg_subset)
+        with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
+            _ = set(neg_subset)
+        assert ~neg_subset == subset
+        empty_intersection: SubsetIntersection[int] = SubsetIntersection(None, [])
+        with pytest.raises(ValueError, match='cannot get length of infinite universe'):
+            _ = len(empty_intersection)
+        with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
+            _ = set(empty_intersection)
+        mapped = MappedSubset(subset, lambda i: i % 2)
+        assert mapped.universe is None
+        assert len(mapped) == 2
+        assert set(mapped) == {0, 1}
+        subset2 = Subset(None, {1})
+        subset3 = subset & (~subset2)
+        assert subset3.universe is None
+        assert len(subset3) == 2
+        assert set(subset3) == {0, 2}
+
     def test_elements_not_in_universe(self):
         universe = {0, 1, 2}
         with pytest.raises(ValueError, match='3 is not an element of the universe'):

@@ -9,12 +9,13 @@ from collections.abc import Callable, Iterable, Iterator, Sequence, Set
 from dataclasses import dataclass, field
 from functools import cached_property, partial, reduce, total_ordering
 import itertools
+from math import inf
 import operator
 from operator import attrgetter, contains
 from typing import Generic, Optional, TypeAlias, TypeVar
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 S = TypeVar('S')
@@ -32,11 +33,11 @@ class BaseSubset(Set[T]):
     """Abstract base class representing a subset of some ambient universe set."""
 
     @abstractmethod
-    def _get_universe(self) -> set[T]:
+    def _get_universe(self) -> Optional[set[T]]:
         """Gets the set of elements representing the ambient set (universe) of the field of sets."""
 
     @cached_property
-    def universe(self) -> set[T]:
+    def universe(self) -> Optional[set[T]]:
         """Cached property returning the set of elements representing the ambient set (universe)
         of the field of sets."""
         return self._get_universe()
@@ -144,22 +145,24 @@ def _check_universes_match(subset1: BaseSubset[T], subset2: BaseSubset[T]) -> No
 
 @dataclass(eq=False)
 class ConcreteSubset(BaseSubset[T]):
-    """Base class for a concrete subset where the universe is stored explicitly as a set."""
+    """Base class for a concrete subset where the universe is stored explicitly as a set.
+    If the universe is None, this is interpreted as "the universe of everything," but it is not possible to represent
+    it concretely."""
 
-    _universe: set[T] = field(repr=False)
+    _universe: Optional[set[T]] = field(repr=False)
 
-    def __init__(self, universe: Iterable[T]) -> None:
-        self._universe = universe if isinstance(universe, set) else set(universe)
+    def __init__(self, universe: Optional[Iterable[T]]) -> None:
+        self._universe = universe if ((universe is None) or isinstance(universe, set)) else set(universe)
 
-    def _get_universe(self) -> set[T]:
+    def _get_universe(self) -> Optional[set[T]]:
         return self._universe
 
     def _validate_elements(self, elements: Iterable[T]) -> None:
         """Checks whether each of the given elements is in the universe, raising a ValueError otherwise."""
-        universe = self._universe
-        for elt in elements:
-            if elt not in universe:
-                raise ValueError(f'{elt} is not an element of the universe')
+        if (universe := self._universe) is not None:
+            for elt in elements:
+                if elt not in universe:
+                    raise ValueError(f'{elt} is not an element of the universe')
 
 
 @dataclass(eq=False)
@@ -168,7 +171,7 @@ class Subset(ConcreteSubset[T]):
 
     _elements: set[T]
 
-    def __init__(self, universe: Iterable[T], elements: Iterable[T]) -> None:
+    def __init__(self, universe: Optional[Iterable[T]], elements: Iterable[T]) -> None:
         super().__init__(universe)
         self._elements = elements if isinstance(elements, set) else set(elements)
         self._validate_elements(self._elements)
@@ -223,7 +226,7 @@ class FilterSubset(ConcreteSubset[T]):
 
     predicate: Callable[[object], bool]
 
-    def __init__(self, universe: Iterable[T], predicate: Callable[[object], bool]) -> None:
+    def __init__(self, universe: Optional[Iterable[T]], predicate: Callable[[object], bool]) -> None:
         super().__init__(universe)
         self.predicate = predicate
 
@@ -231,6 +234,8 @@ class FilterSubset(ConcreteSubset[T]):
         return f'{self.__class__.__name__}(universe={self._universe!r}, predicate={self.predicate!r})'
 
     def _get_elements(self) -> set[T]:
+        if self._universe is None:
+            raise ValueError('cannot enumerate infinite universe')
         return set(filter(self.predicate, self._universe))
 
     def __contains__(self, item: object) -> bool:
@@ -256,6 +261,8 @@ class SubsetComplement(FilterSubset[T]):
         self.subset = subset
 
     def __len__(self) -> int:
+        if self.universe is None:
+            raise ValueError('cannot get length of infinite universe')
         return len(self.universe) - len(self.subset)
 
     def __invert__(self) -> BaseSubset[T]:
@@ -274,11 +281,19 @@ class SubsetIntersection(ConcreteSubset[T]):
     @cached_property
     def _length_sort_indices(self) -> list[int]:
         """Gets the list of indices which would sort the constituent subsets by increasing length."""
-        return [i for (i, _) in sorted(enumerate(self.subsets), key=lambda pair: len(pair[1]))]
+        def _get_length(pair: tuple[int, BaseSubset[T]]) -> float:
+            (_, subset) = pair
+            try:
+                return len(subset)
+            except ValueError:  # infinite universe
+                return inf
+        return [i for (i, _) in sorted(enumerate(self.subsets), key=_get_length)]
 
     def _get_elements(self) -> set[T]:
         match len(self.subsets):
             case 0:
+                if self.universe is None:
+                    raise ValueError('cannot enumerate infinite universe')
                 return self.universe
             case 1:
                 return self.subsets[0].elements
@@ -289,6 +304,11 @@ class SubsetIntersection(ConcreteSubset[T]):
         bigger_subsets = [self.subsets[i] for i in indices[1:]]
         pred = lambda c: all(c in subset for subset in bigger_subsets)
         return set(filter(pred, smallest_subset.elements))
+
+    def __len__(self) -> int:
+        if (self.universe is None) and (len(self.subsets) == 0):
+            raise ValueError('cannot get length of infinite universe')
+        return super().__len__()
 
     def __contains__(self, item: object) -> bool:
         return all(item in subset for subset in self.subsets)
@@ -505,8 +525,10 @@ class MappedSubset(BaseSubset[T], Generic[S, T]):
     base_subset: BaseSubset[S]
     map_func: Callable[[S], T]
 
-    def _get_universe(self) -> set[T]:
-        return set(map(self.map_func, self.base_subset.universe))
+    def _get_universe(self) -> Optional[set[T]]:
+        if (universe := self.base_subset.universe) is None:
+            return None
+        return set(map(self.map_func, universe))
 
     def _get_elements(self) -> set[T]:
         return set(map(self.map_func, self.base_subset))
