@@ -224,9 +224,9 @@ class FilterSubset(ConcreteSubset[T]):
     This can sometimes be more efficient than computing the full set, especially when there are a large number
     of different subsets to deal with."""
 
-    predicate: Callable[[object], bool]
+    predicate: Callable[[T], bool]
 
-    def __init__(self, universe: Optional[Iterable[T]], predicate: Callable[[object], bool]) -> None:
+    def __init__(self, universe: Optional[Iterable[T]], predicate: Callable[[T], bool]) -> None:
         super().__init__(universe)
         self.predicate = predicate
 
@@ -239,8 +239,8 @@ class FilterSubset(ConcreteSubset[T]):
         return set(filter(self.predicate, self._universe))
 
     def __contains__(self, item: object) -> bool:
-        # NOTE: pred may have to evaluate things that are not of type T
-        return self.predicate(item)
+        # NOTE: in practice, predicate may have to evaluate things that are not of type T
+        return self.predicate(item)  # type: ignore[arg-type]
 
 
 #######################

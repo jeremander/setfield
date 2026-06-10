@@ -429,7 +429,7 @@ class TestSubset:
         assert subset.elements == {0, 1, 2}
 
     def test_filter_subset(self):
-        subset = FilterSubset(TEST_RANGE, lambda i: i < 5)  # type: ignore[operator]
+        subset = FilterSubset(TEST_RANGE, lambda i: i < 5)
         assert len(subset) == 5
         assert 0 in subset
         assert 5 not in subset
@@ -506,7 +506,7 @@ class TestSubset:
             r'DynamicSubset\(universe=\{0, 1, 2\}, get_elements=.+\)',
         ),
         (
-            FilterSubset({0, 1, 2}, lambda i: i % 2 == 0),  # type: ignore[operator]
+            FilterSubset({0, 1, 2}, lambda i: i % 2 == 0),
             r'FilterSubset\(universe=\{0, 1, 2\}, predicate=.+\)',
         ),
         (

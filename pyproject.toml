@@ -34,7 +34,7 @@ path = "setfield/__init__.py"
 [tool.hatch.envs.lint]
 dependencies = [
   "hypothesis>=6.148",
-  "mypy>=1.19",
+  "mypy>=2.0",
   "pytest-mypy",
   "ruff>=0.15",
   "vermin>=1.6",
