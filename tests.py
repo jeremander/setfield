@@ -25,6 +25,8 @@ from setfield import (
     SubsetComplement,
     SubsetIntersection,
     SubsetUnion,
+    get_empty_subset,
+    get_full_subset,
     indices_to_minimal_ranges,
     safe_eval,
     safe_eval_boolean_expr,
@@ -77,8 +79,8 @@ def subset_intersections(base_strat, *, max_width: int = 5):
 def subset_unions(base_strat, *, max_width: int = 5):
     return st.lists(base_strat, max_size=max_width).map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))
 
-empty_subset = Subset.empty(TEST_UNIVERSE)
-universe_subset = Subset.full(TEST_UNIVERSE)
+empty_subset = get_empty_subset(TEST_UNIVERSE)
+universe_subset = get_full_subset(TEST_UNIVERSE)
 
 def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5):
     subsets_leaf = (
@@ -389,6 +391,9 @@ class TestSubset:
         subset = Subset(None, {0, 1, 2})
         assert set(subset) == {0, 1, 2}
         assert len(subset) == 3
+        assert subset == subset
+        assert subset >= subset
+        assert subset <= subset
         neg_subset = ~subset
         with pytest.raises(ValueError, match='cannot get length of infinite universe'):
             _ = len(neg_subset)
@@ -409,6 +414,26 @@ class TestSubset:
         assert subset3.universe is None
         assert len(subset3) == 2
         assert set(subset3) == {0, 2}
+
+    def test_infinite_subset(self):
+        full_subset: BaseSubset[int] = get_full_subset(None)
+        assert isinstance(full_subset, FilterSubset)
+        with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
+            _ = len(full_subset)
+        with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
+            _ = set(full_subset)
+        assert 0 in full_subset
+        assert 'a' in full_subset
+        assert full_subset == full_subset
+        assert full_subset <= full_subset
+        assert full_subset >= full_subset
+        assert not (full_subset < full_subset)
+        assert not (full_subset > full_subset)
+        assert {0, 'a'} <= full_subset
+        with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
+            assert {0, 'a'} < full_subset
+        with pytest.raises(TypeError, match="'>=' not supported"):
+            _ = full_subset >= 5
 
     def test_elements_not_in_universe(self):
         universe = {0, 1, 2}

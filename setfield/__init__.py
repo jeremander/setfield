@@ -67,6 +67,8 @@ class BaseSubset(Set[T]):
         return len(self.elements)
 
     def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
         if isinstance(other, BaseSubset):
             # check universe and setwise equality, even if the representation is different
             return (self.universe == other.universe) and (self.elements == other.elements)
@@ -85,15 +87,23 @@ class BaseSubset(Set[T]):
         return NotImplemented  # type: ignore[no-any-return]
 
     def __lt__(self, other: object) -> bool:
+        if self is other:
+            return False
         return self._compare(operator.lt, other)
 
     def __le__(self, other: object) -> bool:
+        if self is other:
+            return True
         return self._compare(operator.le, other)
 
     def __gt__(self, other: object) -> bool:
+        if self is other:
+            return False
         return self._compare(operator.gt, other)
 
     def __ge__(self, other: object) -> bool:
+        if self is other:
+            return True
         return self._compare(operator.ge, other)
 
     def __and__(self, other: object) -> BaseSubset[T]:
@@ -198,18 +208,6 @@ class Subset(ConcreteSubset[T]):
     def _get_elements(self) -> frozenset[T]:
         return self._elements
 
-    @classmethod
-    def empty(cls, universe: Optional[Iterable[T]]) -> Subset[T]:
-        """Constructor which, given the universe, returns a Subset representing the empty subset.
-        This is also called the "bottom" element of the field of sets."""
-        return cls(universe, frozenset())
-
-    @classmethod
-    def full(cls, universe: Iterable[T]) -> Subset[T]:
-        """Constructor which, given the universe, returns a Subset representing the whole universe.
-        This is also called the "top" element of the field of sets."""
-        return cls(universe, universe)
-
 
 @dataclass(frozen=True, eq=False)
 class DynamicSubset(ConcreteSubset[T]):
@@ -259,6 +257,26 @@ class FilterSubset(ConcreteSubset[T]):
     def __contains__(self, item: object) -> bool:
         # NOTE: in practice, predicate may have to evaluate things that are not of type T
         return self.predicate(item)  # type: ignore[arg-type]
+
+    def __ge__(self, other: object) -> bool:
+        if self is other:
+            return True
+        if isinstance(other, Set):
+            return all(map(self.predicate, other))
+        return super().__ge__(other)
+
+
+def get_empty_subset(universe: Optional[Iterable[T]]) -> Subset[T]:
+    """Given a universe, returns a Subset representing the empty subset.
+    This is also called the "bottom" element of the field of sets."""
+    return Subset(universe, frozenset())
+
+def get_full_subset(universe: Optional[Iterable[T]]) -> Subset[T] | FilterSubset[T]:
+    """Given a universe, returns a Subset representing the entire universe.
+    This is also called the "top" element of the field of sets."""
+    if universe is None:
+        return FilterSubset(universe, lambda _: True)
+    return Subset(universe, universe)
 
 
 #######################
