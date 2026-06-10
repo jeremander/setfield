@@ -12,7 +12,7 @@ import itertools
 from math import inf
 import operator
 from operator import attrgetter, contains
-from typing import Generic, Optional, TypeAlias, TypeVar
+from typing import Generic, Literal, Optional, TypeAlias, TypeVar, overload
 
 
 __version__ = '0.1.1'
@@ -266,10 +266,22 @@ class FilterSubset(ConcreteSubset[T]):
         return super().__ge__(other)
 
 
+######################
+# EMPTY/FULL SUBSETS #
+######################
+
 def get_empty_subset(universe: Optional[Iterable[T]]) -> Subset[T]:
     """Given a universe, returns a Subset representing the empty subset.
     This is also called the "bottom" element of the field of sets."""
     return Subset(universe, frozenset())
+
+@overload
+def get_full_subset(universe: Literal[None]) -> FilterSubset[T]:
+    ...
+
+@overload
+def get_full_subset(universe: Iterable[T]) -> Subset[T]:
+    ...
 
 def get_full_subset(universe: Optional[Iterable[T]]) -> Subset[T] | FilterSubset[T]:
     """Given a universe, returns a Subset representing the entire universe.
