@@ -1,6 +1,7 @@
 import ast
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+import dataclasses
 from functools import reduce
 import operator
 import re
@@ -440,6 +441,10 @@ class TestSubset:
             subset.universe.add(2)  # type: ignore[union-attr]
         with pytest.raises(AttributeError, match="'frozenset' object has no attribute 'add'"):
             subset.elements.add(2)  # type: ignore[attr-defined]
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            subset.universe = frozenset(xs)
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            subset.elements = frozenset(xs)
 
     def test_filter_subset(self):
         subset = FilterSubset(TEST_RANGE, lambda i: i < 5)

@@ -149,7 +149,7 @@ def _check_universes_match(subset1: BaseSubset[T], subset2: BaseSubset[T]) -> No
         raise ValueError('universes do not match')
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class ConcreteSubset(BaseSubset[T]):
     """Base class for a concrete subset where the universe is stored explicitly as a frozenset.
     If the universe is None, this is interpreted as "the universe of everything," but it is not possible to represent
@@ -158,7 +158,11 @@ class ConcreteSubset(BaseSubset[T]):
     _universe: Optional[frozenset[T]] = field(repr=False)
 
     def __init__(self, universe: Optional[Iterable[T]]) -> None:
-        self._universe = universe if ((universe is None) or isinstance(universe, frozenset)) else frozenset(universe)
+        object.__setattr__(
+            self,
+            '_universe',
+            universe if ((universe is None) or isinstance(universe, frozenset)) else frozenset(universe),
+        )
 
     def _get_universe(self) -> Optional[frozenset[T]]:
         return self._universe
@@ -171,7 +175,7 @@ class ConcreteSubset(BaseSubset[T]):
                     raise ValueError(f'{elt} is not an element of the universe')
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class Subset(ConcreteSubset[T]):
     """A concrete subset which stores the universe and the subset explicitly as sets."""
 
@@ -179,7 +183,11 @@ class Subset(ConcreteSubset[T]):
 
     def __init__(self, universe: Optional[Iterable[T]], elements: Iterable[T]) -> None:
         super().__init__(universe)
-        self._elements = elements if isinstance(elements, frozenset) else frozenset(elements)
+        object.__setattr__(
+            self,
+            '_elements',
+            elements if isinstance(elements, frozenset) else frozenset(elements),
+        )
         self._validate_elements(self._elements)
 
     def __repr__(self) -> str:
@@ -203,7 +211,7 @@ class Subset(ConcreteSubset[T]):
         return cls(universe, universe)
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class DynamicSubset(ConcreteSubset[T]):
     """A subset which stores the universe concretely but computes the subset lazily via a callable.
     The first time the subset is computed, it is stored on the object and then reused."""
@@ -212,7 +220,7 @@ class DynamicSubset(ConcreteSubset[T]):
 
     def __init__(self, universe: Iterable[T], get_elements: Callable[[], Iterable[T]]) -> None:
         super().__init__(universe)
-        self.get_elements = get_elements
+        object.__setattr__(self, 'get_elements', get_elements)
 
     def __repr__(self) -> str:
         universe_str = str(None) if (self._universe is None) else _frozenset_repr(self._universe)
@@ -226,7 +234,7 @@ class DynamicSubset(ConcreteSubset[T]):
         return elements
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class FilterSubset(ConcreteSubset[T]):
     """A subset which stores the universe concretely but uses a (callable) predicate to determine if
     an element is in the subset.
@@ -237,7 +245,7 @@ class FilterSubset(ConcreteSubset[T]):
 
     def __init__(self, universe: Optional[Iterable[T]], predicate: Callable[[T], bool]) -> None:
         super().__init__(universe)
-        self.predicate = predicate
+        object.__setattr__(self, 'predicate', predicate)
 
     def __repr__(self) -> str:
         universe_str = str(None) if (self._universe is None) else _frozenset_repr(self._universe)
@@ -257,7 +265,7 @@ class FilterSubset(ConcreteSubset[T]):
 # BOOLEAN COMBINATORS #
 #######################
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class SubsetComplement(FilterSubset[T]):
     """A subset which is a complement of another subset.
     This stores the original subset as a `subset` field.
@@ -268,7 +276,7 @@ class SubsetComplement(FilterSubset[T]):
     def __init__(self, subset: BaseSubset[T]) -> None:
         pred = lambda elt: elt not in subset
         super().__init__(subset.universe, pred)
-        self.subset = subset
+        object.__setattr__(self, 'subset', subset)
 
     def __len__(self) -> int:
         if self.universe is None:
@@ -280,7 +288,7 @@ class SubsetComplement(FilterSubset[T]):
         return self.subset
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class SubsetIntersection(ConcreteSubset[T]):
     """A subset which is the intersection of other subsets.
     This stores a list of subsets to intersect as a `subsets` field.
@@ -332,7 +340,7 @@ class SubsetIntersection(ConcreteSubset[T]):
         return NotImplemented
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class SubsetUnion(ConcreteSubset[T]):
     """A subset which is the union of other subsets.
     This stores a list of subsets to union as a `subsets` field.
@@ -447,7 +455,7 @@ def _check_universe_ranges_match(universe_range1: range, universe_range2: range)
         raise ValueError('universes do not match')
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class RangeUnionSubset(BaseSubset[int]):
     """A subset of an integer universe, represented as a disjoint union of sorted ranges.
     This is often a more efficient data structure than a set for enumeration and membership checks,
@@ -457,8 +465,8 @@ class RangeUnionSubset(BaseSubset[int]):
     ranges: Ranges
 
     def __init__(self, universe_range: range, ranges: Ranges) -> None:
-        self._universe_range = universe_range
-        self.ranges = ranges
+        object.__setattr__(self, '_universe_range', universe_range)
+        object.__setattr__(self, 'ranges', ranges)
         # make sure ranges are valid for the universe
         for rng in self.ranges:
             if rng.step not in [1, None]:
@@ -525,7 +533,7 @@ class RangeUnionSubset(BaseSubset[int]):
 # FUNCTION MAPPING #
 ####################
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class MappedSubset(BaseSubset[T], Generic[S, T]):
     """A subset formed by mapping a function, `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
@@ -544,7 +552,7 @@ class MappedSubset(BaseSubset[T], Generic[S, T]):
         return frozenset(map(self.map_func, self.base_subset))
 
 
-@dataclass(eq=False)
+@dataclass(frozen=True, eq=False)
 class IsoMappedSubset(MappedSubset[S, T]):
     """A subset formed by mapping a one-to-one function (isomorphism), `map_func`, onto a base subset.
     This may transform the type of the base subset depending on the output type of the function.
