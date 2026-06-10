@@ -1,5 +1,5 @@
 import ast
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from functools import reduce
 import operator
@@ -37,10 +37,10 @@ T = TypeVar('T')
 TEST_UNIVERSE_SIZE = 1_000
 TEST_UNIVERSE_MAX = TEST_UNIVERSE_SIZE - 1
 TEST_RANGE = range(TEST_UNIVERSE_SIZE)
-TEST_UNIVERSE = set(TEST_RANGE)
+TEST_UNIVERSE = frozenset(TEST_RANGE)
 
 
-def subset_static(elements: set[int]) -> Subset[int]:
+def subset_static(elements: Iterable[int]) -> Subset[int]:
     return Subset(TEST_UNIVERSE, elements)
 
 
@@ -428,6 +428,19 @@ class TestSubset:
         assert subset.universe == TEST_UNIVERSE
         assert subset.elements == {0, 1, 2}
 
+    def test_subset_immutable(self):
+        xs = {0, 1}
+        subset = subset_static(xs)
+        assert type(subset.elements) is frozenset
+        assert subset == xs
+        assert subset.elements is not xs
+        with pytest.raises(AttributeError, match="'Subset' object has no attribute 'add'"):
+            subset.add(2)  # type: ignore[attr-defined]
+        with pytest.raises(AttributeError, match="'frozenset' object has no attribute 'add'"):
+            subset.universe.add(2)  # type: ignore[union-attr]
+        with pytest.raises(AttributeError, match="'frozenset' object has no attribute 'add'"):
+            subset.elements.add(2)  # type: ignore[attr-defined]
+
     def test_filter_subset(self):
         subset = FilterSubset(TEST_RANGE, lambda i: i < 5)
         assert len(subset) == 5
@@ -586,7 +599,7 @@ class TestSubset:
         assert (subset1 | subset2.elements) == union
         assert type(subset1.elements | subset2) is SubsetUnion
         assert (subset1.elements | subset2) == union
-        assert type(subset1.elements | subset2.elements) is set
+        assert type(subset1.elements | subset2.elements) is frozenset
         assert (subset1.elements | subset2.elements) == union
         with pytest.raises(TypeError, match='unsupported operand'):
             _ = subset1 | 123
@@ -607,7 +620,7 @@ class TestSubset:
         assert (subset1 & subset2.elements) == intersection
         assert type(subset1.elements & subset2) is SubsetIntersection
         assert (subset1.elements & subset2) == intersection
-        assert type(subset1.elements & subset2.elements) is set
+        assert type(subset1.elements & subset2.elements) is frozenset
         assert (subset1.elements & subset2.elements) == intersection
         with pytest.raises(TypeError, match='unsupported operand'):
             _ = subset1 & '123'
@@ -623,7 +636,7 @@ class TestSubset:
         assert (subset1 - subset2.elements) == diff
         assert type(subset1.elements - subset2) is SubsetIntersection
         assert (subset1.elements - subset2) == diff
-        assert type(subset1.elements - subset2.elements) is set
+        assert type(subset1.elements - subset2.elements) is frozenset
         assert (subset1.elements - subset2.elements) == diff
         with pytest.raises(TypeError, match='unsupported operand'):
             _ = subset1 - '123'
@@ -670,15 +683,19 @@ class TestSubset:
             assert subset.elements is TEST_UNIVERSE
         assert all(subset <= component for component in subset.subsets)
         if subset.subsets:
-            assert reduce(set.intersection, (component.elements for component in subset.subsets)) == subset.elements
+            assert reduce(
+                frozenset.intersection, (component.elements for component in subset.subsets)
+            ) == subset.elements
 
     @given(subset_unions(subsets_static()))
     def test_subset_union(self, subset):
         self._test_base_subset(subset)
         if not subset.subsets:
-            assert subset.elements == set()
+            assert subset.elements == frozenset()
         assert all(component <= subset for component in subset.subsets)
-        assert reduce(set.union, (component.elements for component in subset.subsets), set()) == subset.elements
+        assert reduce(
+            frozenset.union, (component.elements for component in subset.subsets), frozenset()
+        ) == subset.elements
 
     @given(subsets())
     @settings(deadline=None)
