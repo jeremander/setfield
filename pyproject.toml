@@ -7,7 +7,7 @@ name = "setfield"
 dynamic = ["version"]
 description = "Library providing a field-of-sets construction."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
   { name = "Jeremy Silver", email = "jeremys@nessiness.com" }
@@ -43,7 +43,7 @@ dependencies = [
 [tool.hatch.envs.lint.scripts]
 # linting
 run-ruff = "ruff check {args:setfield tests.py}"
-# ensure compatibility with Py3.10 and higher
+# ensure compatibility with minimum Python version
 run-vermin = "vermin {args:.}"
 # type-checking
 run-mypy = "mypy --install-types --non-interactive {args:setfield tests.py}"
@@ -64,7 +64,7 @@ cov-report = ["- coverage combine", "coverage report", "coverage html"]
 cov = ["test-cov", "cov-report"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.badge]
 dependencies = [
