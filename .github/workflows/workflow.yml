@@ -53,7 +53,8 @@ jobs:
       - name: Test (pytest)
         run: |
           hatch run test:test --verbosity=0
-          hatch run test.py3.11:cov-report
+          hatch run test.py3.12:test-cov
+          hatch run test.py3.12:cov-report
       - name: Coverage Badge
         run: |
           hatch run badge:badges
