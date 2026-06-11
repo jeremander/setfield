@@ -24,12 +24,6 @@ T = TypeVar('T')
 Ranges: TypeAlias = Sequence[range]
 
 
-def _frozenset_repr(xs: frozenset[object]) -> str:
-    if not xs:
-        return 'set()'
-    return str(xs).removeprefix('frozenset(').removesuffix(')')
-
-
 #################
 # FIELD OF SETS #
 #################
@@ -39,14 +33,21 @@ class BaseSubset(Set[T]):
     """Abstract base class representing a subset of some ambient universe set."""
 
     @abstractmethod
-    def _get_universe(self) -> Optional[frozenset[T]]:
+    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
         """Gets the set of elements representing the ambient set (universe) of the field of sets."""
 
     @cached_property
-    def universe(self) -> Optional[frozenset[T]]:
+    def universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
         """Cached property returning the set of elements representing the ambient set (universe)
         of the field of sets."""
         return self._get_universe()
+
+    def _validate_elements(self, elements: Iterable[T]) -> None:
+        """Checks whether each of the given elements is in the universe, raising a ValueError otherwise."""
+        if (universe := self.universe) is not None:
+            for elt in elements:
+                if elt not in universe:
+                    raise ValueError(f'{elt} is not an element of the universe')
 
     @abstractmethod
     def _get_elements(self) -> frozenset[T]:
@@ -158,59 +159,50 @@ def _check_universes_match(subset1: BaseSubset[T], subset2: BaseSubset[T]) -> No
     if subset1.universe != subset2.universe:
         raise ValueError('universes do not match')
 
+def _get_set_repr(obj: Optional[BaseSubset[T] | frozenset[T]]) -> str:
+    if isinstance(obj, frozenset) and obj:
+        return str(obj).removeprefix('frozenset(').removesuffix(')')
+    return repr(obj)
+
 
 @dataclass(frozen=True, eq=False)
-class ConcreteSubset(BaseSubset[T]):
-    """Base class for a concrete subset where the universe is stored explicitly as a frozenset.
-    If the universe is None, this is interpreted as "the universe of everything," but it is not possible to represent
-    it concretely."""
+class _Subset(BaseSubset[T]):
 
-    _universe: Optional[frozenset[T]] = field(repr=False)
+    _universe: Optional[BaseSubset[T] | frozenset[T]] = field(repr=False)
 
     def __init__(self, universe: Optional[Iterable[T]]) -> None:
-        object.__setattr__(
-            self,
-            '_universe',
-            universe if ((universe is None) or isinstance(universe, frozenset)) else frozenset(universe),
-        )
+        if (universe is not None) and (not isinstance(universe, (frozenset, BaseSubset))):
+            universe = frozenset(universe)
+        object.__setattr__(self, '_universe', universe)
 
-    def _get_universe(self) -> Optional[frozenset[T]]:
+    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
         return self._universe
-
-    def _validate_elements(self, elements: Iterable[T]) -> None:
-        """Checks whether each of the given elements is in the universe, raising a ValueError otherwise."""
-        if (universe := self._universe) is not None:
-            for elt in elements:
-                if elt not in universe:
-                    raise ValueError(f'{elt} is not an element of the universe')
 
 
 @dataclass(frozen=True, eq=False)
-class Subset(ConcreteSubset[T]):
-    """A concrete subset which stores the universe and the subset explicitly as sets."""
+class Subset(_Subset[T]):
+    """A subset which stores both the universe and the subset elements as concrete objects."""
 
-    _elements: frozenset[T]
+    _elements: BaseSubset[T] | frozenset[T]
 
     def __init__(self, universe: Optional[Iterable[T]], elements: Iterable[T]) -> None:
         super().__init__(universe)
-        object.__setattr__(
-            self,
-            '_elements',
-            elements if isinstance(elements, frozenset) else frozenset(elements),
-        )
+        if (elements is not None) and (not isinstance(elements, (frozenset, BaseSubset))):
+            elements = frozenset(elements)
+        object.__setattr__(self, '_elements', elements)
         self._validate_elements(self._elements)
 
     def __repr__(self) -> str:
-        universe_str = str(None) if (self._universe is None) else _frozenset_repr(self._universe)
-        elements_str = str(None) if (self._elements is None) else _frozenset_repr(self._elements)
+        universe_str = _get_set_repr(self._universe)
+        elements_str = _get_set_repr(self._elements)
         return f'{self.__class__.__name__}(universe={universe_str}, elements={elements_str})'
 
     def _get_elements(self) -> frozenset[T]:
-        return self._elements
+        return self._elements if isinstance(self._elements, frozenset) else frozenset(self._elements)
 
 
 @dataclass(frozen=True, eq=False)
-class DynamicSubset(ConcreteSubset[T]):
+class DynamicSubset(_Subset[T]):
     """A subset which stores the universe concretely but computes the subset lazily via a callable.
     The first time the subset is computed, it is stored on the object and then reused."""
 
@@ -221,7 +213,7 @@ class DynamicSubset(ConcreteSubset[T]):
         object.__setattr__(self, 'get_elements', get_elements)
 
     def __repr__(self) -> str:
-        universe_str = str(None) if (self._universe is None) else _frozenset_repr(self._universe)
+        universe_str = _get_set_repr(self._universe)
         return f'{self.__class__.__name__}(universe={universe_str}, get_elements={self.get_elements!r})'
 
     def _get_elements(self) -> frozenset[T]:
@@ -233,7 +225,7 @@ class DynamicSubset(ConcreteSubset[T]):
 
 
 @dataclass(frozen=True, eq=False)
-class FilterSubset(ConcreteSubset[T]):
+class FilterSubset(_Subset[T]):
     """A subset which stores the universe concretely but uses a (callable) predicate to determine if
     an element is in the subset.
     This can sometimes be more efficient than computing the full set, especially when there are a large number
@@ -246,7 +238,7 @@ class FilterSubset(ConcreteSubset[T]):
         object.__setattr__(self, 'predicate', predicate)
 
     def __repr__(self) -> str:
-        universe_str = str(None) if (self._universe is None) else _frozenset_repr(self._universe)
+        universe_str = _get_set_repr(self._universe)
         return f'{self.__class__.__name__}(universe={universe_str}, predicate={self.predicate!r})'
 
     def _get_elements(self) -> frozenset[T]:
@@ -319,7 +311,7 @@ class SubsetComplement(FilterSubset[T]):
 
 
 @dataclass(frozen=True, eq=False)
-class SubsetIntersection(ConcreteSubset[T]):
+class SubsetIntersection(_Subset[T]):
     """A subset which is the intersection of other subsets.
     This stores a list of subsets to intersect as a `subsets` field.
     Set membership is computed as the logical conjuction (AND) of membership in all of the inner subsets."""
@@ -342,7 +334,7 @@ class SubsetIntersection(ConcreteSubset[T]):
             case 0:
                 if self.universe is None:
                     raise ValueError('cannot enumerate infinite universe')
-                return self.universe
+                return self.universe if isinstance(self.universe, frozenset) else frozenset(self.universe)
             case 1:
                 return self.subsets[0].elements
         # NOTE: naive implementation of taking full setwise intersection can be expensive if subsets are large.
@@ -371,7 +363,7 @@ class SubsetIntersection(ConcreteSubset[T]):
 
 
 @dataclass(frozen=True, eq=False)
-class SubsetUnion(ConcreteSubset[T]):
+class SubsetUnion(_Subset[T]):
     """A subset which is the union of other subsets.
     This stores a list of subsets to union as a `subsets` field.
     Set membership is computed as the logical disjunction (OR) of membership in all of the inner subsets."""

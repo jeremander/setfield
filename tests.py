@@ -477,7 +477,16 @@ class TestSubset:
         assert 0 in subset
         assert 5 not in subset
         assert set(subset) == set(range(5))
+        assert type(subset.universe) is frozenset
+        assert subset.universe == frozenset(TEST_RANGE)
         self._test_base_subset(subset)
+        subset = FilterSubset(subset_static({0, 10}), lambda i: i < 5)
+        assert len(subset) == 1
+        assert 0 in subset
+        assert 10 not in subset
+        # NOTE: the universe type is not a frozenset, but a Subset
+        assert type(subset.universe) is Subset
+        assert subset.universe == {0, 10}
 
     def test_range_union(self):
         subset = RangeUnionSubset(TEST_RANGE, [range(5, 10), range(15, 20)])

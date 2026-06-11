@@ -90,6 +90,10 @@ omit = ["venv/*"]
 [tool.coverage.report]
 skip_covered = true
 show_missing = true
+exclude_also = [
+  "@overload",
+  "@typing.overload",
+]
 exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
