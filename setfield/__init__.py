@@ -15,7 +15,7 @@ from operator import attrgetter, contains
 from typing import Generic, Literal, Optional, TypeAlias, TypeVar, overload
 
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 
 S = TypeVar('S')
