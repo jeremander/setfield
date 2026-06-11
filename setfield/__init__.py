@@ -17,6 +17,7 @@ from .eval import safe_eval as safe_eval
 from .eval import safe_eval_boolean_expr as safe_eval_boolean_expr
 from .ranges import Ranges as Ranges
 from .ranges import RangeUnionSubset as RangeUnionSubset
+from .unicode import AllUnicode as AllUnicode
 from .unicode import UnicodeRanges as UnicodeRanges
 
 
