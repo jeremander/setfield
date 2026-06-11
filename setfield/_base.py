@@ -18,11 +18,11 @@ class BaseSubset(Set[T]):
     """Abstract base class representing a subset of some ambient universe set."""
 
     @abstractmethod
-    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
+    def _get_universe(self) -> Optional[Set[T]]:
         """Gets the set of elements representing the ambient set (universe) of the field of sets."""
 
     @cached_property
-    def universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
+    def universe(self) -> Optional[Set[T]]:
         """Cached property returning the set of elements representing the ambient set (universe)
         of the field of sets."""
         return self._get_universe()
@@ -43,11 +43,11 @@ class BaseSubset(Set[T]):
             raise ValueError('universes do not match')
 
     @abstractmethod
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         """Gets the set of elements in this subset."""
 
     @cached_property
-    def elements(self) -> frozenset[T]:
+    def elements(self) -> Set[T]:
         """Cached property returning the set of elements in this subset."""
         return self._get_elements()
 
@@ -146,7 +146,7 @@ class BaseSubset(Set[T]):
         return (self | other) - (self & other)
 
 
-def _get_set_repr(obj: Optional[BaseSubset[T] | frozenset[T]]) -> str:
+def _get_set_repr(obj: Optional[Set[T]]) -> str:
     if isinstance(obj, frozenset) and obj:
         return str(obj).removeprefix('frozenset(').removesuffix(')')
     return repr(obj)
@@ -155,14 +155,14 @@ def _get_set_repr(obj: Optional[BaseSubset[T] | frozenset[T]]) -> str:
 @dataclass(frozen=True, eq=False)
 class _Subset(BaseSubset[T]):
 
-    _universe: Optional[BaseSubset[T] | frozenset[T]] = field(repr=False)
+    _universe: Optional[Set[T]] = field(repr=False)
 
     def __init__(self, universe: Optional[Iterable[T]]) -> None:
-        if (universe is not None) and (not isinstance(universe, (frozenset, BaseSubset))):
+        if (universe is not None) and (not isinstance(universe, Set)):
             universe = frozenset(universe)
         object.__setattr__(self, '_universe', universe)
 
-    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
+    def _get_universe(self) -> Optional[Set[T]]:
         return self._universe
 
 
@@ -170,11 +170,11 @@ class _Subset(BaseSubset[T]):
 class Subset(_Subset[T]):
     """A subset which stores both the universe and the subset elements as concrete objects."""
 
-    _elements: BaseSubset[T] | frozenset[T]
+    _elements: Set[T]
 
     def __init__(self, universe: Optional[Iterable[T]], elements: Iterable[T]) -> None:
         super().__init__(universe)
-        if (elements is not None) and (not isinstance(elements, (frozenset, BaseSubset))):
+        if (elements is not None) and (not isinstance(elements, Set)):
             elements = frozenset(elements)
         object.__setattr__(self, '_elements', elements)
         self._validate_elements(self._elements)
@@ -184,7 +184,7 @@ class Subset(_Subset[T]):
         elements_str = _get_set_repr(self._elements)
         return f'{self.__class__.__name__}(universe={universe_str}, elements={elements_str})'
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         return self._elements if isinstance(self._elements, frozenset) else frozenset(self._elements)
 
 
@@ -203,7 +203,7 @@ class DynamicSubset(_Subset[T]):
         universe_str = _get_set_repr(self._universe)
         return f'{self.__class__.__name__}(universe={universe_str}, get_elements={self.get_elements!r})'
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         elements = self.get_elements()
         if not isinstance(elements, frozenset):
             elements = frozenset(elements)
@@ -228,7 +228,7 @@ class FilterSubset(_Subset[T]):
         universe_str = _get_set_repr(self._universe)
         return f'{self.__class__.__name__}(universe={universe_str}, predicate={self.predicate!r})'
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         if self._universe is None:
             raise ValueError('cannot enumerate infinite universe')
         return frozenset(filter(self.predicate, self._universe))
@@ -316,7 +316,7 @@ class SubsetIntersection(_Subset[T]):
                 return inf
         return [i for (i, _) in sorted(enumerate(self.subsets), key=_get_length)]
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         match len(self.subsets):
             case 0:
                 if self.universe is None:
@@ -357,10 +357,10 @@ class SubsetUnion(_Subset[T]):
 
     subsets: list[BaseSubset[T]]
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         if not self.subsets:
             return frozenset()
-        return reduce(frozenset.union, (subset.elements for subset in self.subsets))
+        return reduce(frozenset.union, (subset.elements for subset in self.subsets))  # type: ignore[arg-type]
 
     def __contains__(self, item: object) -> bool:
         return any(item in cs for cs in self.subsets)
@@ -388,12 +388,12 @@ class MappedSubset(BaseSubset[T], Generic[S, T]):
     base_subset: BaseSubset[S]
     map_func: Callable[[S], T]
 
-    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
+    def _get_universe(self) -> Optional[Set[T]]:
         if (universe := self.base_subset.universe) is None:
             return None
         return frozenset(map(self.map_func, universe))
 
-    def _get_elements(self) -> frozenset[T]:
+    def _get_elements(self) -> Set[T]:
         return frozenset(map(self.map_func, self.base_subset))
 
 

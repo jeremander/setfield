@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence, Set
 from dataclasses import dataclass
 from functools import cached_property, partial
 import itertools
@@ -156,10 +156,10 @@ class RangeUnionSubset(BaseSubset[int]):
     def __len__(self) -> int:
         return self._size
 
-    def _get_universe(self) -> Optional[BaseSubset[int] | frozenset[int]]:
+    def _get_universe(self) -> Optional[Set[int]]:
         return frozenset(self._universe_range)
 
-    def _get_elements(self) -> frozenset[int]:
+    def _get_elements(self) -> Set[int]:
         return frozenset(self.__iter__())
 
     def __and__(self, other: object) -> BaseSubset[int]:
