@@ -30,6 +30,8 @@ class BaseSubset(Set[T]):
     def _validate_elements(self, elements: Iterable[T]) -> None:
         """Checks whether each of the given elements is in the universe, raising a ValueError otherwise."""
         if (universe := self.universe) is not None:
+            if elements is universe:  # no need to enumerate
+                return
             for elt in elements:
                 if elt not in universe:
                     raise ValueError(f'{elt} is not an element of the universe')
@@ -174,7 +176,7 @@ class Subset(_Subset[T]):
 
     def __init__(self, universe: Optional[Iterable[T]], elements: Iterable[T]) -> None:
         super().__init__(universe)
-        if (elements is not None) and (not isinstance(elements, Set)):
+        if (elements is not None) and (isinstance(elements, set) or (not isinstance(elements, Set))):
             elements = frozenset(elements)
         object.__setattr__(self, '_elements', elements)
         self._validate_elements(self._elements)
@@ -185,7 +187,7 @@ class Subset(_Subset[T]):
         return f'{self.__class__.__name__}(universe={universe_str}, elements={elements_str})'
 
     def _get_elements(self) -> Set[T]:
-        return self._elements if isinstance(self._elements, frozenset) else frozenset(self._elements)
+        return self._elements if isinstance(self._elements, Set) else frozenset(self._elements)
 
 
 @dataclass(frozen=True, eq=False)

@@ -49,10 +49,6 @@ class AllUnicode(Set[str]):
         return f'{type(self).__name__}()'
 
 
-# constant representing the set of all Unicode characters
-ALL_UNICODE = AllUnicode()
-
-
 class UnicodeRanges(IsoMappedSubset[int, str]):
     """Represents a set of Unicode characters as a union of code point ranges."""
 
