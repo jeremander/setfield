@@ -26,7 +26,7 @@ Source = "https://github.com/jeremander/setfield"
 allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]
-include = ["/setfield", "tests.py"]
+include = ["/setfield", "/tests"]
 
 [tool.hatch.version]
 path = "setfield/__init__.py"
@@ -42,11 +42,11 @@ dependencies = [
 
 [tool.hatch.envs.lint.scripts]
 # linting
-run-ruff = "ruff check {args:setfield tests.py}"
+run-ruff = "ruff check {args:setfield tests}"
 # ensure compatibility with minimum Python version
 run-vermin = "vermin {args:.}"
 # type-checking
-run-mypy = "mypy --install-types --non-interactive {args:setfield tests.py}"
+run-mypy = "mypy --install-types --non-interactive {args:setfield tests}"
 all = ["run-ruff", "run-vermin", "run-mypy"]
 
 [tool.hatch.envs.test]
