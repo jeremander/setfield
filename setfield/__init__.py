@@ -15,7 +15,7 @@ from operator import attrgetter, contains
 from typing import Generic, Literal, Optional, TypeAlias, TypeVar, overload
 
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 
 S = TypeVar('S')
@@ -49,6 +49,14 @@ class BaseSubset(Set[T]):
                 if elt not in universe:
                     raise ValueError(f'{elt} is not an element of the universe')
 
+    def _universes_match(self, other: BaseSubset[T]) -> bool:
+        """Returns True if the universe of this BaseSubset matches that of another."""
+        return self.universe == other.universe
+
+    def _check_universes_match(self, other: BaseSubset[T]) -> None:
+        if not self._universes_match(other):
+            raise ValueError('universes do not match')
+
     @abstractmethod
     def _get_elements(self) -> frozenset[T]:
         """Gets the set of elements in this subset."""
@@ -80,7 +88,7 @@ class BaseSubset(Set[T]):
 
     def _compare(self, cmp: Callable[[set[T], set[T]], bool], other: object) -> bool:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             return cmp(self.elements, other.elements)  # type: ignore[arg-type]
         if isinstance(other, Set):
             # assume the same universe for other
@@ -109,7 +117,7 @@ class BaseSubset(Set[T]):
 
     def __and__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             return SubsetIntersection(self.universe, [self, other])
         if isinstance(other, Set):
             return SubsetIntersection(self.universe, [self, Subset(self.universe, other)])
@@ -122,7 +130,7 @@ class BaseSubset(Set[T]):
 
     def __or__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             return SubsetUnion(self.universe, [self, other])
         if isinstance(other, Set):
             return SubsetUnion(self.universe, [self, Subset(self.universe, other)])
@@ -138,7 +146,7 @@ class BaseSubset(Set[T]):
 
     def __sub__(self, other: object) -> BaseSubset[T]:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             return self & ~other
         if isinstance(other, Set):
             return self & ~(Subset(self.universe, other))
@@ -152,12 +160,6 @@ class BaseSubset(Set[T]):
     def __xor__(self, other: object) -> BaseSubset[T]:
         return (self | other) - (self & other)
 
-
-def _check_universes_match(subset1: BaseSubset[T], subset2: BaseSubset[T]) -> None:
-    """Checks whether the universes of two Subsets match.
-    If not, raises a ValueError."""
-    if subset1.universe != subset2.universe:
-        raise ValueError('universes do not match')
 
 def _get_set_repr(obj: Optional[BaseSubset[T] | frozenset[T]]) -> str:
     if isinstance(obj, frozenset) and obj:
@@ -355,7 +357,7 @@ class SubsetIntersection(_Subset[T]):
 
     def __and__(self, other: object) -> SubsetIntersection[T]:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             if isinstance(other, SubsetIntersection):
                 return type(self)(self.universe, self.subsets + other.subsets)
             return type(self)(self.universe, self.subsets + [other])
@@ -380,7 +382,7 @@ class SubsetUnion(_Subset[T]):
 
     def __or__(self, other: object) -> SubsetUnion[T]:
         if isinstance(other, BaseSubset):
-            _check_universes_match(self, other)
+            self._check_universes_match(other)
             if isinstance(other, SubsetUnion):
                 return type(self)(self.universe, self.subsets + other.subsets)
             return type(self)(self.universe, self.subsets + [other])
