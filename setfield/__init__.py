@@ -80,7 +80,7 @@ class BaseSubset(Set[T]):
             return True
         if isinstance(other, BaseSubset):
             # check universe and setwise equality, even if the representation is different
-            return (self.universe == other.universe) and (self.elements == other.elements)
+            return self._universes_match(other) and (self.elements == other.elements)
         if isinstance(other, Set):
             # assume the same universe for other
             return self.elements == other
@@ -506,6 +506,11 @@ class RangeUnionSubset(BaseSubset[int]):
             if rng1.stop > rng2.start:
                 raise ValueError('ranges must be sorted and not overlap')
 
+    def _universes_match(self, other: BaseSubset[int]) -> bool:
+        if isinstance(other, RangeUnionSubset):
+            return self._universe_range == other._universe_range
+        return super()._universes_match(other)
+
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(universe_range={self._universe_range!r}, ranges={self.ranges!r})'
 
@@ -529,7 +534,7 @@ class RangeUnionSubset(BaseSubset[int]):
     def __len__(self) -> int:
         return self._size
 
-    def _get_universe(self) -> frozenset[int]:
+    def _get_universe(self) -> Optional[BaseSubset[int] | frozenset[int]]:
         return frozenset(self._universe_range)
 
     def _get_elements(self) -> frozenset[int]:
@@ -567,7 +572,7 @@ class MappedSubset(BaseSubset[T], Generic[S, T]):
     base_subset: BaseSubset[S]
     map_func: Callable[[S], T]
 
-    def _get_universe(self) -> Optional[frozenset[T]]:
+    def _get_universe(self) -> Optional[BaseSubset[T] | frozenset[T]]:
         if (universe := self.base_subset.universe) is None:
             return None
         return frozenset(map(self.map_func, universe))

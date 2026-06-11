@@ -58,9 +58,10 @@ dependencies = [
 
 [tool.hatch.envs.test.scripts]
 test = "pytest {args:tests.py}"
+test-cov = "pytest {args:tests.py} --cov=setfield"
 test-debug = "pytest --pdb {args:tests.py}"
 cov-report = ["- coverage combine", "coverage report", "coverage html"]
-cov = ["test", "cov-report"]
+cov = ["test-cov", "cov-report"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13"]
