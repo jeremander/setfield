@@ -66,7 +66,7 @@ lint.exclude = [
 line-length = 120
 
 [lint.per-file-ignores]
-"tests.py" = ["ANN", "D"]
+"tests/*" = ["ANN", "D"]
 
 [lint.flake8-pytest-style]
 parametrize-names-type = "list"
