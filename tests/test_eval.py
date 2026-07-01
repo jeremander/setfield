@@ -42,10 +42,10 @@ def _get_set(name: str) -> set[int]:
 
 small_universe = {1, 2, 3, 4, 5}
 
-def example_interpret(expr: str) -> BaseSubset[int]:
+def example_interpret(expr: str, *, allow_quotes: bool = False) -> BaseSubset[int]:
     def eval_name(name: str) -> Subset[int]:
         return Subset(small_universe, _get_set(name))
-    return safe_eval_boolean_expr(expr, eval_name)
+    return safe_eval_boolean_expr(expr, eval_name, allow_quotes=allow_quotes)
 
 
 class TestInterpretation:
@@ -299,3 +299,43 @@ class TestInterpretation:
     def test_interpret_bool_expr_invalid(self, expr, error):
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr)
+
+    @pytest.mark.parametrize(['expr', 'output_set', 'error'], [
+        (
+            '"A"',
+            {1, 2, 3},
+            None,
+        ),
+        (
+            "'A'",
+            {1, 2, 3},
+            None,
+        ),
+        (
+            '"A" & B',
+            {3},
+            None,
+        ),
+        (
+            '"D"',
+            None,
+            'invalid name: D',
+        ),
+        (
+            '1',
+            None,
+            'disallowed literal type: int',
+        ),
+        (
+            'A & 1',
+            None,
+            'disallowed literal type: int',
+        ),
+    ])
+    def test_interpret_bool_expr_with_quotes(self, expr, output_set, error):
+        if error is None:
+            value = example_interpret(expr, allow_quotes=True)
+            assert set(value) == output_set
+        else:
+            with pytest.raises(ValueError, match=error):
+                _ = example_interpret(expr, allow_quotes=True)
