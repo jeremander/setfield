@@ -1,6 +1,7 @@
 """Unit tests for Unicode subsets."""
 
 import itertools
+import re
 import sys
 
 import pytest
@@ -10,6 +11,10 @@ from setfield.unicode import NUM_UNICODE
 
 
 ALL_UNICODE = AllUnicode()
+EMPTY = UnicodeRanges([])
+UNICODE = UnicodeRanges([range(NUM_UNICODE)])
+LATIN = UnicodeRanges([range(128)])
+PUNCTUATION = UnicodeRanges([range(33, 48), range(58, 65), range(91, 97), range(123, 127)])
 
 
 def test_all_unicode():
@@ -38,43 +43,51 @@ def test_unicode_ranges():
     """Tests the UnicodeRanges class."""
     with pytest.raises(ValueError, match='invalid range'):
         _ = UnicodeRanges([range(-10, 10)])
-    empty = UnicodeRanges([])
-    unicode = UnicodeRanges([range(NUM_UNICODE)])
-    latin = UnicodeRanges([range(128)])
-    punctuation = UnicodeRanges([range(33, 48), range(58, 65), range(91, 97), range(123, 127)])
     # empty set
-    assert len(empty) == 0
-    assert empty < latin
-    assert latin | empty == latin
-    assert latin & empty == empty
-    neg_empty = ~empty
+    assert len(EMPTY) == 0
+    assert EMPTY < LATIN
+    assert LATIN | EMPTY == LATIN
+    assert LATIN & EMPTY == EMPTY
+    neg_empty = ~EMPTY
     assert type(neg_empty) is SubsetComplement
     assert len(neg_empty) == NUM_UNICODE
-    assert neg_empty == unicode
-    assert ~neg_empty == empty
+    assert neg_empty == UNICODE
+    assert ~neg_empty == EMPTY
     # full Unicode set
-    assert len(unicode) == NUM_UNICODE
-    assert latin < unicode
-    assert latin | unicode == unicode
-    assert latin & unicode == latin
-    neg_unicode = ~unicode
+    assert len(UNICODE) == NUM_UNICODE
+    assert LATIN < UNICODE
+    assert LATIN | UNICODE == UNICODE
+    assert LATIN & UNICODE == LATIN
+    neg_unicode = ~UNICODE
     assert type(neg_unicode) is SubsetComplement
     assert len(neg_unicode) == 0
     assert neg_unicode == set()
-    assert ~neg_unicode == unicode
+    assert ~neg_unicode == UNICODE
     # other sets
-    assert latin.universe is ALL_UNICODE
-    assert len(latin) == 128
-    assert len(punctuation) == 32
-    assert set(latin) == latin
-    assert latin == set(latin)
-    assert set(punctuation) == punctuation
-    assert punctuation == set(punctuation)
-    assert punctuation < latin
-    assert punctuation < set(latin)
-    assert set(punctuation) < latin
-    assert latin > punctuation
-    assert latin == latin
-    assert latin is not UnicodeRanges([range(128)])
-    assert latin == UnicodeRanges([range(128)])
-    assert latin != punctuation
+    assert LATIN.universe is ALL_UNICODE
+    assert len(LATIN) == 128
+    assert len(PUNCTUATION) == 32
+    assert set(LATIN) == LATIN
+    assert LATIN == set(LATIN)
+    assert set(PUNCTUATION) == PUNCTUATION
+    assert PUNCTUATION == set(PUNCTUATION)
+    assert PUNCTUATION < LATIN
+    assert PUNCTUATION < set(LATIN)
+    assert set(PUNCTUATION) < LATIN
+    assert LATIN > PUNCTUATION
+    assert LATIN == LATIN
+    assert LATIN is not UnicodeRanges([range(128)])
+    assert LATIN == UnicodeRanges([range(128)])
+    assert LATIN != PUNCTUATION
+
+@pytest.mark.parametrize('ranges', [
+    EMPTY,
+    UNICODE,
+    LATIN,
+    PUNCTUATION,
+])
+def test_unicode_ranges_repr(ranges):
+    """Tests the repr behavior of UnicodeRanges."""
+    assert str(ranges) == repr(ranges)
+    assert re.fullmatch(r'UnicodeRanges\(\[.*\]\)', str(ranges))
+    assert eval(str(ranges)) == ranges

@@ -64,3 +64,6 @@ class UnicodeRanges(IsoMappedSubset[int, str]):
         if isinstance(other, UnicodeRanges):
             return self.base_subset == other.base_subset
         return super().__eq__(other)
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}({self.base_subset.ranges})'  # type: ignore[attr-defined]
