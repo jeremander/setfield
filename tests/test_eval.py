@@ -38,6 +38,8 @@ def _get_set(name: str) -> set[int]:
             return {3, 4}
         case 'C':
             return {1, 3, 5}
+        case 'A Z':  # requires quotes to express as a name
+            return {1, 5}
     raise ValueError(f'invalid name: {name}')
 
 small_universe = {1, 2, 3, 4, 5}
@@ -295,47 +297,65 @@ class TestInterpretation:
             'A | D',
             'invalid name: D',
         ),
+        (
+            'A Z',
+            'invalid expression',
+        ),
+        # quoted literals not permitted
+        (
+            '"A Z"',
+            'disallowed construct: Constant',
+        ),
     ])
     def test_interpret_bool_expr_invalid(self, expr, error):
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr)
 
-    @pytest.mark.parametrize(['expr', 'output_set', 'error'], [
+    @pytest.mark.parametrize(['expr', 'output_set'], [
         (
             '"A"',
             {1, 2, 3},
-            None,
         ),
         (
             "'A'",
             {1, 2, 3},
-            None,
         ),
         (
             '"A" & B',
             {3},
-            None,
+        ),
+        # name with a space
+        (
+            "'A Z'",
+            {1, 5},
         ),
         (
+            '"A Z"',
+            {1, 5},
+        ),
+        (
+            '"A Z"&\'A Z\'',
+            {1, 5},
+        ),
+    ])
+    def test_interpret_bool_expr_with_quotes_valid(self, expr, output_set):
+        value = example_interpret(expr, allow_quotes=True)
+        assert set(value) == output_set
+
+    @pytest.mark.parametrize(['expr', 'error'], [
+        (
             '"D"',
-            None,
             'invalid name: D',
         ),
         (
             '1',
-            None,
             'disallowed literal type: int',
         ),
         (
             'A & 1',
-            None,
             'disallowed literal type: int',
         ),
     ])
-    def test_interpret_bool_expr_with_quotes(self, expr, output_set, error):
-        if error is None:
-            value = example_interpret(expr, allow_quotes=True)
-            assert set(value) == output_set
-        else:
-            with pytest.raises(ValueError, match=error):
-                _ = example_interpret(expr, allow_quotes=True)
+    def test_interpret_bool_expr_with_quotes_invalid(self, expr, error):
+        with pytest.raises(ValueError, match=error):
+            _ = example_interpret(expr, allow_quotes=True)
