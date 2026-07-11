@@ -38,9 +38,11 @@ def safe_eval(
     *,
     safe_node_types: set[type],
     allow_quotes: bool = False,
+    eval_callable: Optional[Callable[[str], Callable[..., T]]] = None,
 ) -> T:
     """Calls Python's `eval` function in a more "safe" context, in that the caller must provide:
-        1. `eval_name`: a callable which maps names (identifiers) to Python objects, and errors if the name is invalid.
+        1. `eval_name`: a callable which maps names (identifiers) to Python objects of type T, and errors if the name
+        is invalid.
         2. `safe_node_types`: a set of `ast.Node` objects indicating which elements of Python syntax are permitted
         in the expression.
     This makes it easy to create miniature Embedded Domain Specific Languages (EDSLs) using only a fragment
@@ -48,7 +50,9 @@ def safe_eval(
     Most notably, it can support expressions that only consist of names and boolean connectives.
     If `eval_name` is None, then no identifiers will be permitted.
     If `allow_quotes` is True, additionally allows the use of quoted literals as names as well.
-    This is useful when names may contain symbols not permitted in Python identifiers."""
+        - This is useful when names may contain symbols not permitted in Python identifiers.
+    If `eval_callable` is provided, it should be a function which evaluates names to callables (of any arity) whose
+    arguments are of type T."""
     if eval_name is None:
         safe_node_types = safe_node_types - {ast.Name}
     try:
@@ -64,13 +68,15 @@ def safe_eval(
             if isinstance(s, str):
                 return eval_name(s)
             raise ValueError(f'disallowed literal type: {type(s).__name__}')
-    _locals = {}
+    _locals: dict[str, T | Callable[..., T]] = {}
     for node in ast.walk(tree):
         if allow_quotes and isinstance(node, (ast.Call, ast.Constant)):
             continue
-        if (tp := type(node)) not in safe_node_types:
+        if eval_callable and isinstance(node, ast.Call):
+            _locals[node.func.id] = eval_callable(node.func.id)  # type: ignore[attr-defined]
+        elif (tp := type(node)) not in safe_node_types:
             raise ValueError(f'disallowed construct: {tp.__name__}')
-        if isinstance(node, ast.Name) and (node.id != '__lit__'):
+        elif isinstance(node, ast.Name) and (node.id != '__lit__') and (node.id not in _locals):
             # NOTE: eval_identifier should raise an error if identifier is invalid
             _locals[node.id] = eval_name(node.id)  # type: ignore[misc]
     # evaluate directly from code object (avoids re-parsing from a string)
@@ -82,11 +88,20 @@ def safe_eval_boolean_expr(
     eval_name: Optional[Callable[[str], T]] = None,
     *,
     allow_quotes: bool = False,
+    eval_callable: Optional[Callable[[str], Callable[..., T]]] = None,
 ) -> T:
     """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using
     a safe version of `eval` which only allows specific identifiers and boolean connectives.
     `eval_name` should be a function that maps names to Python objects, and it should raise an exception if
     the name is not valid.
     If `allow_quotes` is True, additionally allows the use of quoted literals as names as well.
-    This is useful when names may contain symbols not permitted in Python identifiers."""
-    return safe_eval(expr, eval_name=eval_name, safe_node_types=BOOLEAN_SAFE_NODE_TYPES, allow_quotes=allow_quotes)
+        - This is useful when names may contain symbols not permitted in Python identifiers.
+    If `eval_callable` is provided, it should be a function which evaluates names to callables (of any arity) whose
+    arguments are of type T."""
+    return safe_eval(
+        expr,
+        eval_name=eval_name,
+        safe_node_types=BOOLEAN_SAFE_NODE_TYPES,
+        allow_quotes=allow_quotes,
+        eval_callable=eval_callable,
+    )

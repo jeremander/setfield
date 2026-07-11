@@ -13,6 +13,7 @@ from setfield import (
     SubsetComplement,
     SubsetIntersection,
     SubsetUnion,
+    get_empty_subset,
     safe_eval,
     safe_eval_boolean_expr,
 )
@@ -44,10 +45,28 @@ def _get_set(name: str) -> set[int]:
 
 small_universe = {1, 2, 3, 4, 5}
 
-def example_interpret(expr: str, *, allow_quotes: bool = False) -> BaseSubset[int]:
-    def eval_name(name: str) -> Subset[int]:
-        return Subset(small_universe, _get_set(name))
-    return safe_eval_boolean_expr(expr, eval_name, allow_quotes=allow_quotes)
+def example_eval_name(name: str) -> Subset[int]:
+    """Example function which evaluates a name to an integer Subset."""
+    return Subset(small_universe, _get_set(name))
+
+def example_eval_callable(name: str) -> Callable[..., Subset[int]]:
+    """Example function which evaluates a name to a callable producing the empty set."""
+    empty = get_empty_subset(small_universe)
+    match name:
+        case 'empty0':
+            return lambda: empty
+        case 'empty1':
+            return lambda _set1: empty
+        case 'empty2':
+            return lambda _set1, _set2: empty
+    raise ValueError(f'invalid callable: {name}')
+
+def example_interpret(expr: str, *, allow_quotes: bool = False, allow_callable: bool = False) -> BaseSubset[int]:
+    """Example interpretation function for evaluating a boolean expression combining named sets.
+    If allow_quotes=True, allows quoted names.
+    If allow_callable, allows example callables (empty0, empty1, empty2)."""
+    eval_callable = example_eval_callable if allow_callable else None
+    return safe_eval_boolean_expr(expr, example_eval_name, allow_quotes=allow_quotes, eval_callable=eval_callable)
 
 
 class TestInterpretation:
@@ -244,6 +263,7 @@ class TestInterpretation:
         ),
     ])
     def test_interpret_bool_expr_valid(self, expr, output_type, output_set):
+        """Tests an example evaluation function, for valid expressions."""
         value = example_interpret(expr)
         assert type(value) is output_type
         assert set(value) == output_set
@@ -308,6 +328,7 @@ class TestInterpretation:
         ),
     ])
     def test_interpret_bool_expr_invalid(self, expr, error):
+        """Tests an example evaluation function, for invalid expressions."""
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr)
 
@@ -339,6 +360,7 @@ class TestInterpretation:
         ),
     ])
     def test_interpret_bool_expr_with_quotes_valid(self, expr, output_set):
+        """Tests an example evaluation function when allowing quoted names, for valid expressions."""
         value = example_interpret(expr, allow_quotes=True)
         assert set(value) == output_set
 
@@ -357,5 +379,72 @@ class TestInterpretation:
         ),
     ])
     def test_interpret_bool_expr_with_quotes_invalid(self, expr, error):
+        """Tests an example evaluation function when allowing quoted names, for invalid expressions."""
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr, allow_quotes=True)
+
+    @pytest.mark.parametrize(['expr', 'output_set'], [
+        (
+            'empty0()',
+            set(),
+        ),
+        (
+            'A',
+            {1, 2, 3},
+        ),
+        (
+            'A & empty0()',
+            set(),
+        ),
+        (
+            'empty1(A)',
+            set(),
+        ),
+        (
+            'empty1(A | B)',
+            set(),
+        ),
+        (
+            'empty2(A, B)',
+            set(),
+        ),
+    ])
+    def test_interpret_bool_expr_with_callable_valid(self, expr, output_set):
+        """Tests an example evaluation function which permits callables, for valid expressions."""
+        value = example_interpret(expr, allow_callable=True)
+        assert set(value) == output_set
+
+    @pytest.mark.parametrize(['expr', 'error'], [
+        (
+            'D',
+            'invalid name: D',
+        ),
+        (
+            'empty0',
+            'invalid name: empty0',
+        ),
+        (
+            'empty0(',
+            'invalid expression',
+        ),
+        (
+            'empty0(A)',
+            'takes 0 positional arguments but 1 was given',
+        ),
+        (
+            'empty1()',
+            'missing 1 required positional argument',
+        ),
+        (
+            'empty2(A)',
+            'missing 1 required positional argument',
+        ),
+        (
+            'A()',
+            'invalid callable: A',
+        ),
+    ])
+    def test_interpret_bool_expr_with_callable_invalid(self, expr, error):
+        """Tests an example evaluation function which permits callables, for invalid expressions."""
+        with pytest.raises((ValueError, TypeError), match=error):
+            _ = example_interpret(expr, allow_callable=True)
