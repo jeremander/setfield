@@ -31,7 +31,7 @@ class TestRanges:
             [range(0, 1), range(2, 4)],
         ),
     ])
-    def test_indices_to_minimal_ranges(self, indices, ranges):
+    def test_indices_to_minimal_ranges(self, indices: list[int], ranges: list[range]) -> None:
         assert indices_to_minimal_ranges(indices) == ranges
 
     @pytest.mark.parametrize(['universe', 'ranges_seq', 'intersection'], [
@@ -96,7 +96,12 @@ class TestRanges:
             [range(2, 3)],
         ),
     ])
-    def test_ranges_intersection(self, universe, ranges_seq, intersection):
+    def test_ranges_intersection(
+        self,
+        universe: range,
+        ranges_seq: list[list[range]],
+        intersection: list[range],
+    ) -> None:
         assert _ranges_intersection(universe, ranges_seq) == intersection
 
     @pytest.mark.parametrize(['ranges_seq', 'union'], [
@@ -142,7 +147,7 @@ class TestRanges:
             [range(0, 10)],
         ),
     ])
-    def test_ranges_union(self, ranges_seq, union):
+    def test_ranges_union(self, ranges_seq: list[list[range]], union: list[range]) -> None:
         assert _ranges_union(ranges_seq) == union
 
     @pytest.mark.parametrize(['universe', 'ranges', 'complement'], [
@@ -197,5 +202,5 @@ class TestRanges:
             [range(10, 100)],
         ),
     ])
-    def test_ranges_complement(self, universe, ranges, complement):
+    def test_ranges_complement(self, universe: range, ranges: list[range], complement: list[range]) -> None:
         assert _ranges_complement(universe, ranges) == complement

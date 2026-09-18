@@ -49,7 +49,7 @@ T = TypeVar('T')
 
 class TestSubset:
 
-    def _test_base_subset(self, subset):
+    def _test_base_subset(self, subset: BaseSubset[int]) -> None:
         """Tests properties that should hold for every BaseSubset."""
         with suppress(hypothesis.errors.InvalidArgument):
             event(f'type: {type(subset).__name__}')
@@ -109,13 +109,13 @@ class TestSubset:
             assert type(subset2) is type(subset)
             assert subset2 == subset
 
-    def test_empty_subset(self):
+    def test_empty_subset(self) -> None:
         assert type(empty_subset) is Subset
         assert len(empty_subset) == 0
         assert ~empty_subset == universe_subset
         self._test_base_subset(empty_subset)
 
-    def test_universe_subset(self):
+    def test_universe_subset(self) -> None:
         assert type(universe_subset) is Subset
         assert len(universe_subset) == TEST_UNIVERSE_MAX + 1
         assert 0 in universe_subset
@@ -127,7 +127,7 @@ class TestSubset:
         assert ~universe_subset == empty_subset
         self._test_base_subset(universe_subset)
 
-    def test_infinite_universe(self):
+    def test_infinite_universe(self) -> None:
         subset = Subset(None, {0, 1, 2})
         assert set(subset) == {0, 1, 2}
         assert len(subset) == 3
@@ -155,7 +155,7 @@ class TestSubset:
         assert len(subset3) == 2
         assert set(subset3) == {0, 2}
 
-    def test_infinite_subset(self):
+    def test_infinite_subset(self) -> None:
         full_subset: BaseSubset[int] = get_full_subset(None)
         assert isinstance(full_subset, FilterSubset)
         with pytest.raises(ValueError, match='cannot enumerate infinite universe'):
@@ -175,7 +175,7 @@ class TestSubset:
         with pytest.raises(TypeError, match="'>=' not supported"):
             _ = full_subset >= 5
 
-    def test_elements_not_in_universe(self):
+    def test_elements_not_in_universe(self) -> None:
         universe = {0, 1, 2}
         with pytest.raises(ValueError, match='3 is not an element of the universe'):
             _ = Subset(universe, {1, 3})
@@ -185,7 +185,7 @@ class TestSubset:
         with pytest.raises(ValueError, match='3 is not an element of the universe'):
             _ = subset.elements
 
-    def test_dynamic_subset(self):
+    def test_dynamic_subset(self) -> None:
         subset = DynamicSubset(TEST_RANGE, lambda: {0, 1, 2})
         assert subset.universe == TEST_UNIVERSE
         assert subset.elements == {0, 1, 2}
@@ -194,7 +194,7 @@ class TestSubset:
         assert subset.universe == TEST_UNIVERSE
         assert subset.elements == {0, 1, 2}
 
-    def test_subset_immutable(self):
+    def test_subset_immutable(self) -> None:
         xs = {0, 1}
         subset = subset_static(xs)
         assert type(subset.elements) is frozenset
@@ -211,7 +211,7 @@ class TestSubset:
         with pytest.raises(dataclasses.FrozenInstanceError):
             subset.elements = frozenset(xs)
 
-    def test_filter_subset(self):
+    def test_filter_subset(self) -> None:
         subset = FilterSubset(TEST_RANGE, lambda i: i < 5)
         assert len(subset) == 5
         assert 0 in subset
@@ -228,7 +228,7 @@ class TestSubset:
         assert type(subset.universe) is Subset
         assert subset.universe == {0, 10}
 
-    def test_range_union(self):
+    def test_range_union(self) -> None:
         subset = RangeUnionSubset(TEST_RANGE, [range(5, 10), range(15, 20)])
         assert len(subset) == 10
         assert 5 in subset
@@ -265,7 +265,7 @@ class TestSubset:
             'cannot have start >= stop',
         ),
     ])
-    def test_range_union_invalid_bounds(self, ranges, error):
+    def test_range_union_invalid_bounds(self, ranges: list[range], error: str) -> None:
         with pytest.raises(ValueError, match=error):
             _ = RangeUnionSubset(range(100), ranges)
 
@@ -282,7 +282,7 @@ class TestSubset:
         [range(10), range(10, 10)],
         [range(10), range(20, 20), range(5, 15)],
     ])
-    def test_range_union_unsorted_or_overlapping_ranges(self, ranges):
+    def test_range_union_unsorted_or_overlapping_ranges(self, ranges: list[range]) -> None:
         with pytest.raises(ValueError, match='(ranges must be sorted and not overlap)|(cannot have start >= stop)'):
             _ = RangeUnionSubset(TEST_RANGE, ranges)
         subset = RangeUnionSubset.from_ranges(TEST_RANGE, ranges)
@@ -306,12 +306,12 @@ class TestSubset:
             r'RangeUnionSubset\(universe_range=range\(0, 5\), ranges=\[range\(2, 4\), range\(4, 5\)\]\)',
         ),
     ])
-    def test_repr(self, subset, repr_pattern):
+    def test_repr(self, subset: BaseSubset[int], repr_pattern: str) -> None:
         subset_repr = repr(subset)
         assert str(subset) == subset_repr
         assert re.match(repr_pattern, subset_repr)
 
-    def test_subset_mapped(self):
+    def test_subset_mapped(self) -> None:
         base_subset = subset_static({0, 1, 2, 3, 4})
         subset = MappedSubset(base_subset, lambda i: i % 3)
         assert 1 in subset
@@ -320,16 +320,16 @@ class TestSubset:
         assert set(subset) == {0, 1, 2}
         subset = MappedSubset(base_subset, lambda i: i % 3)
 
-    def test_subset_iso_mapped(self):
+    def test_subset_iso_mapped(self) -> None:
         base_subset = subset_static({0, 1, 2})
         # valid one-to-one mapping
         def _safe_int(s: str) -> int:
             if not isinstance(s, str):
                 raise TypeError('input must be a string')
             return int(s)
-        subset = IsoMappedSubset(base_subset, str, _safe_int)
+        subset: BaseSubset[str] = IsoMappedSubset(base_subset, str, _safe_int)
         assert '1' in subset
-        assert 1 not in subset
+        assert 1 not in subset  # type: ignore[comparison-overlap]
         assert list(subset) == ['0', '1', '2']
         assert len(subset) == 3
         assert subset.universe == set(map(str, TEST_UNIVERSE))
@@ -341,23 +341,23 @@ class TestSubset:
         # one-to-one on the proper domain, but __contains__ can cause issues if querying an element not in the universe
         subset = IsoMappedSubset(base_subset, str, int)
         assert '1' in subset
-        assert 1 in subset  # danger!
+        assert 1 in subset  # type: ignore[comparison-overlap]  # danger!
         assert list(subset) == ['0', '1', '2']
         assert len(subset) == 3
         assert subset.universe == set(map(str, TEST_UNIVERSE))
         assert set(subset) == {'0', '1', '2'}
         # invalid one-to-one-mapping
-        subset = IsoMappedSubset(base_subset, lambda i: i // 2, lambda i: i * 2)  # type: ignore
-        assert 0 in subset
-        assert 1 in subset
-        assert 2 not in subset
-        assert list(subset) == [0, 0, 1]  # not unique!
-        assert len(subset) == 3  # wrong!
-        assert subset.universe == set(range(TEST_UNIVERSE_SIZE // 2))
-        assert subset.elements == {0, 1}
-        assert set(subset) == {0, 1}
+        int_subset = IsoMappedSubset(base_subset, lambda i: i // 2, lambda i: i * 2)
+        assert 0 in int_subset
+        assert 1 in int_subset
+        assert 2 not in int_subset
+        assert list(int_subset) == [0, 0, 1]  # not unique!
+        assert len(int_subset) == 3  # wrong!
+        assert int_subset.universe == set(range(TEST_UNIVERSE_SIZE // 2))
+        assert int_subset.elements == {0, 1}
+        assert set(int_subset) == {0, 1}
 
-    def test_boolean_operators(self):
+    def test_boolean_operators(self) -> None:
         subset1 = subset_static({0, 1, 2})
         subset2 = subset_static({2, 3, 4})
         assert subset1 != subset2
@@ -432,7 +432,7 @@ class TestSubset:
             RangeUnionSubset(range(6), [range(3)]),
         ),
     ])
-    def test_boolean_operator_universe_mismatch(self, subset1, subset2):
+    def test_boolean_operator_universe_mismatch(self, subset1: BaseSubset[int], subset2: BaseSubset[int]) -> None:
         for op in [
             operator.lt, operator.le, operator.ge, operator.gt,
             operator.and_, operator.or_, operator.xor, operator.sub
@@ -444,39 +444,39 @@ class TestSubset:
         assert subset1 != subset2
 
     @given(subsets_static())
-    def test_subset_static_generic(self, subset):
+    def test_subset_static_generic(self, subset: Subset[int]) -> None:
         self._test_base_subset(subset)
 
     @given(subsets_dynamic())
-    def test_subset_dynamic_generic(self, subset):
+    def test_subset_dynamic_generic(self, subset: DynamicSubset[int]) -> None:
         self._test_base_subset(subset)
 
     @given(subsets_range_union())
-    def test_unicode_ranges_generic(self, subset):
+    def test_unicode_ranges_generic(self, subset: SubsetUnion[int]) -> None:
         self._test_base_subset(subset)
 
     @given(subset_intersections(subsets_static()))
-    def test_subset_intersection(self, subset):
+    def test_subset_intersection(self, subset: SubsetIntersection[int]) -> None:
         self._test_base_subset(subset)
         if not subset.subsets:
             assert subset.elements is TEST_UNIVERSE
         assert all(subset <= component for component in subset.subsets)
         if subset.subsets:
             assert reduce(
-                frozenset.intersection, (component.elements for component in subset.subsets)
+                frozenset.intersection, (component.elements for component in subset.subsets)  # type: ignore[arg-type]
             ) == subset.elements
 
     @given(subset_unions(subsets_static()))
-    def test_subset_union(self, subset):
+    def test_subset_union(self, subset: SubsetUnion[int]) -> None:
         self._test_base_subset(subset)
         if not subset.subsets:
             assert subset.elements == frozenset()
         assert all(component <= subset for component in subset.subsets)
         assert reduce(
-            frozenset.union, (component.elements for component in subset.subsets), frozenset()
+            frozenset.union, (component.elements for component in subset.subsets), frozenset()  # type: ignore[arg-type]
         ) == subset.elements
 
     @given(subsets())
     @settings(deadline=None)
-    def test_subset_generic(self, subset):
+    def test_subset_generic(self, subset: BaseSubset[int]) -> None:
         self._test_base_subset(subset)

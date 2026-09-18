@@ -106,11 +106,6 @@ exclude = ["tmp.*"]
 warn_unused_configs = true
 strict = true
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-strict = false
-disable_error_code = ["comparison-overlap", "no-untyped-call", "no-untyped-def"]
-
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests/"]

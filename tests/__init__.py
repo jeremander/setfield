@@ -1,9 +1,11 @@
 from collections.abc import Iterable
+from collections.abc import Set as AbstractSet
 import operator
 
 import hypothesis.strategies as st
 
 from setfield import (
+    BaseSubset,
     DynamicSubset,
     RangeUnionSubset,
     Subset,
@@ -28,21 +30,35 @@ def subset_static(elements: Iterable[int]) -> Subset[int]:
 # STRATEGIES
 
 @st.composite
-def subsets_static(draw, *, max_size: int = 25):
+def subsets_static(draw: st.DrawFn, *, max_size: int = 25) -> Subset[int]:
     elements = draw(st.lists(st.integers(0, TEST_UNIVERSE_MAX), max_size=max_size, unique=True))
     return subset_static(elements)
 
 @st.composite
-def subsets_dynamic(draw, *, max_size: int = 25):
+def subsets_dynamic(draw: st.DrawFn, *, max_size: int = 25) -> DynamicSubset[int]:
     subset = draw(subsets_static(max_size=max_size))
-    elements: set[int] = subset.elements
+    elements: AbstractSet[int] = subset.elements
     return DynamicSubset(TEST_UNIVERSE, lambda: elements)
 
-def subset_intersections(base_strat, *, max_width: int = 5):
-    return st.lists(base_strat, max_size=max_width).map(lambda subsets: SubsetIntersection(TEST_UNIVERSE, subsets))
+def subset_intersections(
+    base_strat: st.SearchStrategy[BaseSubset[int]],
+    *,
+    max_width: int = 5,
+) -> st.SearchStrategy[BaseSubset[int]]:
+    return (
+        st.lists(base_strat, max_size=max_width)
+        .map(lambda subsets: SubsetIntersection(TEST_UNIVERSE, subsets))  # pyrefly: ignore[implicit-any-lambda]
+    )
 
-def subset_unions(base_strat, *, max_width: int = 5):
-    return st.lists(base_strat, max_size=max_width).map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))
+def subset_unions(
+    base_strat: st.SearchStrategy[BaseSubset[int]],
+    *,
+    max_width: int = 5,
+) -> st.SearchStrategy[BaseSubset[int]]:
+    return (
+        st.lists(base_strat, max_size=max_width)
+        .map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))  # pyrefly: ignore[implicit-any-lambda]
+    )
 
 
 empty_subset = get_empty_subset(TEST_UNIVERSE)
@@ -50,7 +66,7 @@ universe_subset = get_full_subset(TEST_UNIVERSE)
 
 
 @st.composite
-def subsets_range_union(draw, *, max_num_ranges: int = 10):
+def subsets_range_union(draw: st.DrawFn, *, max_num_ranges: int = 10) -> RangeUnionSubset:
     """Hypothesis strategy for generating RangeUnionSubsets."""
     def _get_range(upper: int) -> range:
         pair = sorted(draw(st.tuples(st.integers(0, upper), st.integers(0, upper))))
@@ -63,7 +79,7 @@ def subsets_range_union(draw, *, max_num_ranges: int = 10):
     num_ranges = draw(st.integers(0, max_num_ranges))
     return RangeUnionSubset(TEST_RANGE, _get_ranges(num_ranges, TEST_UNIVERSE_MAX))
 
-def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5):
+def subsets(*, max_leaf_size: int = 25, max_leaves: int = 25, max_width: int = 5) -> st.SearchStrategy[BaseSubset[int]]:
     """Hypothesis strategy for generating various BaseSubset objects."""
     subsets_leaf = (
         subsets_range_union()

@@ -17,7 +17,7 @@ LATIN = UnicodeRanges([range(128)])
 PUNCTUATION = UnicodeRanges([range(33, 48), range(58, 65), range(91, 97), range(123, 127)])
 
 
-def test_all_unicode():
+def test_all_unicode() -> None:
     """Tests the AllUnicode class."""
     chars = ['\x00', 'a', chr(sys.maxunicode)]
     for c in chars:
@@ -39,7 +39,7 @@ def test_all_unicode():
     assert ALL_UNICODE > char_set
     assert str(ALL_UNICODE) == 'AllUnicode()'
 
-def test_unicode_ranges():
+def test_unicode_ranges() -> None:
     """Tests the UnicodeRanges class."""
     with pytest.raises(ValueError, match='invalid range'):
         _ = UnicodeRanges([range(-10, 10)])
@@ -86,7 +86,7 @@ def test_unicode_ranges():
     LATIN,
     PUNCTUATION,
 ])
-def test_unicode_ranges_repr(ranges):
+def test_unicode_ranges_repr(ranges: UnicodeRanges) -> None:
     """Tests the repr behavior of UnicodeRanges."""
     assert str(ranges) == repr(ranges)
     assert re.fullmatch(r'UnicodeRanges\(\[.*\]\)', str(ranges))

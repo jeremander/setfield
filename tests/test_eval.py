@@ -2,7 +2,7 @@
 
 import ast
 from collections.abc import Callable
-from typing import Optional, TypeVar
+from typing import Optional, TypeAlias, TypeVar
 
 import pytest
 
@@ -20,6 +20,8 @@ from setfield import (
 
 
 T = TypeVar('T')
+
+EvalNameFunc: TypeAlias = Callable[[str], set[int]]
 
 
 ARITH_SAFE_NODE_TYPES = BOOLEAN_SAFE_NODE_TYPES | {
@@ -199,7 +201,13 @@ class TestInterpretation:
             'disallowed construct: Call',
         ),
     ])
-    def test_interpret_arith_expr(self, expr, eval_names, value, error):
+    def test_interpret_arith_expr(
+        self,
+        expr: str,
+        eval_names: EvalNameFunc | list[EvalNameFunc],
+        value: Optional[set[int]],
+        error: Optional[str],
+    ) -> None:
         if not isinstance(eval_names, list):
             eval_names = [eval_names]
         for eval_name in eval_names:
@@ -262,7 +270,12 @@ class TestInterpretation:
             {1, 3},
         ),
     ])
-    def test_interpret_bool_expr_valid(self, expr, output_type, output_set):
+    def test_interpret_bool_expr_valid(
+        self,
+        expr: str,
+        output_type: type[BaseSubset[int]],
+        output_set: set[int],
+    ) -> None:
         """Tests an example evaluation function, for valid expressions."""
         value = example_interpret(expr)
         assert type(value) is output_type
@@ -327,7 +340,7 @@ class TestInterpretation:
             'disallowed construct: Constant',
         ),
     ])
-    def test_interpret_bool_expr_invalid(self, expr, error):
+    def test_interpret_bool_expr_invalid(self, expr: str, error: str) -> None:
         """Tests an example evaluation function, for invalid expressions."""
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr)
@@ -359,7 +372,7 @@ class TestInterpretation:
             {1, 5},
         ),
     ])
-    def test_interpret_bool_expr_with_quotes_valid(self, expr, output_set):
+    def test_interpret_bool_expr_with_quotes_valid(self, expr: str, output_set: set[int]) -> None:
         """Tests an example evaluation function when allowing quoted names, for valid expressions."""
         value = example_interpret(expr, allow_quotes=True)
         assert set(value) == output_set
@@ -378,7 +391,7 @@ class TestInterpretation:
             'disallowed literal type: int',
         ),
     ])
-    def test_interpret_bool_expr_with_quotes_invalid(self, expr, error):
+    def test_interpret_bool_expr_with_quotes_invalid(self, expr: str, error: str) -> None:
         """Tests an example evaluation function when allowing quoted names, for invalid expressions."""
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr, allow_quotes=True)
@@ -409,7 +422,7 @@ class TestInterpretation:
             set(),
         ),
     ])
-    def test_interpret_bool_expr_with_callable_valid(self, expr, output_set):
+    def test_interpret_bool_expr_with_callable_valid(self, expr: str, output_set: set[int]) -> None:
         """Tests an example evaluation function which permits callables, for valid expressions."""
         value = example_interpret(expr, allow_callable=True)
         assert set(value) == output_set
@@ -444,7 +457,7 @@ class TestInterpretation:
             'invalid callable: A',
         ),
     ])
-    def test_interpret_bool_expr_with_callable_invalid(self, expr, error):
+    def test_interpret_bool_expr_with_callable_invalid(self, expr: str, error: str) -> None:
         """Tests an example evaluation function which permits callables, for invalid expressions."""
         with pytest.raises((ValueError, TypeError), match=error):
             _ = example_interpret(expr, allow_callable=True)
