@@ -2,10 +2,14 @@
 
 import ast
 from collections.abc import Callable
-from typing import Optional, TypeVar
+from typing import Optional, TypeAlias, TypeVar
 
 
 T = TypeVar('T')
+
+
+# function taking variadic T as input and returning T
+EvalCallable: TypeAlias = Callable[[*tuple[T, ...]], T]
 
 
 # ast node types safe for boolean expressions
@@ -38,7 +42,7 @@ def safe_eval(
     *,
     safe_node_types: set[type],
     allow_quotes: bool = False,
-    eval_callable: Optional[Callable[[str], Callable[..., T]]] = None,
+    eval_callable: Optional[Callable[[str], EvalCallable[T]]] = None,
 ) -> T:
     """Calls Python's `eval` function in a more "safe" context, in that the caller must provide:
         1. `eval_name`: a callable which maps names (identifiers) to Python objects of type T, and errors if the name
@@ -88,7 +92,7 @@ def safe_eval_boolean_expr(
     eval_name: Optional[Callable[[str], T]] = None,
     *,
     allow_quotes: bool = False,
-    eval_callable: Optional[Callable[[str], Callable[..., T]]] = None,
+    eval_callable: Optional[Callable[[str], EvalCallable[T]]] = None,
 ) -> T:
     """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using
     a safe version of `eval` which only allows specific identifiers and boolean connectives.
