@@ -58,9 +58,9 @@ def example_eval_callable(name: str) -> Callable[..., Subset[int]]:
         case 'empty0':
             return lambda: empty
         case 'empty1':
-            return lambda _set1: empty
+            return lambda _set1: empty  # pyrefly: ignore[implicit-any-lambda]
         case 'empty2':
-            return lambda _set1, _set2: empty
+            return lambda _set1, _set2: empty  # pyrefly: ignore[implicit-any-lambda]
     raise ValueError(f'invalid callable: {name}')
 
 def example_interpret(expr: str, *, allow_quotes: bool = False, allow_callable: bool = False) -> BaseSubset[int]:

@@ -285,7 +285,7 @@ class SubsetComplement(FilterSubset[T]):
     subset: BaseSubset[T]
 
     def __init__(self, subset: BaseSubset[T]) -> None:
-        pred = lambda elt: elt not in subset
+        pred: Callable[[T], bool] = lambda elt: elt not in subset
         super().__init__(subset.universe, pred)
         object.__setattr__(self, 'subset', subset)
 
@@ -331,7 +331,7 @@ class SubsetIntersection(_Subset[T]):
         indices = self._length_sort_indices
         smallest_subset = self.subsets[indices[0]]
         bigger_subsets = [self.subsets[i] for i in indices[1:]]
-        pred = lambda c: all(c in subset for subset in bigger_subsets)
+        pred: Callable[[T], bool] = lambda elt: all(elt in subset for subset in bigger_subsets)
         return frozenset(filter(pred, smallest_subset.elements))
 
     def __len__(self) -> int:

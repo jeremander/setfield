@@ -23,13 +23,13 @@ def indices_to_minimal_ranges(indices: Iterable[int]) -> list[range]:
     for i in sorted(indices):
         if first is None:
             first = last = i
-        elif i > last + 1:
+        elif i > last + 1:  # pyrefly: ignore[unbound-name]
             ranges.append(range(first, last + 1))
             first = last = i
         else:
             last = i
     if first is not None:
-        ranges.append(range(first, last + 1))
+        ranges.append(range(first, last + 1))  # pyrefly: ignore[unbound-name]
     return ranges
 
 def _ranges_intersection(universe: range, ranges_seq: Sequence[Ranges]) -> list[range]:
@@ -60,13 +60,13 @@ def _ranges_union(ranges_seq: Sequence[Ranges]) -> list[range]:
             continue
         if first is None:
             (first, last) = (start, stop)
-        if start > last:
+        if start > last:  # pyrefly: ignore[unbound-name]
             new_ranges.append(range(first, last))
             (first, last) = (start, stop)
         else:
             last = max(last, stop)
     if first is not None:
-        new_ranges.append(range(first, last))
+        new_ranges.append(range(first, last))  # pyrefly: ignore[unbound-name]
     return new_ranges
 
 def _ranges_complement(universe: range, ranges: Ranges) -> list[range]:

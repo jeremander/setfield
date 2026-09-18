@@ -47,7 +47,7 @@ def subset_intersections(
 ) -> st.SearchStrategy[BaseSubset[int]]:
     return (
         st.lists(base_strat, max_size=max_width)
-        .map(lambda subsets: SubsetIntersection(TEST_UNIVERSE, subsets))  # pyrefly: ignore[implicit-any-lambda]
+        .map(lambda subsets: SubsetIntersection(TEST_UNIVERSE, subsets))
     )
 
 def subset_unions(
@@ -57,7 +57,7 @@ def subset_unions(
 ) -> st.SearchStrategy[BaseSubset[int]]:
     return (
         st.lists(base_strat, max_size=max_width)
-        .map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))  # pyrefly: ignore[implicit-any-lambda]
+        .map(lambda subsets: SubsetUnion(TEST_UNIVERSE, subsets))
     )
 
 

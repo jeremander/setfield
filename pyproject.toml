@@ -115,3 +115,6 @@ addopts = "--verbose --durations=10"
 preset = "strict"
 check-unannotated-defs = true
 min-severity = "warn"
+
+[tool.pyrefly.errors]
+missing-override-decorator = "ignore"
