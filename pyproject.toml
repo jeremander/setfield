@@ -110,3 +110,8 @@ strict = true
 minversion = "6.0"
 testpaths = ["tests/"]
 addopts = "--verbose --durations=10"
+
+[tool.pyrefly]
+preset = "strict"
+check-unannotated-defs = true
+min-severity = "warn"
