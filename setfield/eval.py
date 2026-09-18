@@ -60,8 +60,11 @@ class _EvalCallableOnLiterals(ast.NodeTransformer):
                     args.append(arg.value)
                 # create a new placeholder function which takes no arguments and returns the precomputed value
                 placeholder_func_name = self._add_precompute_func(func(*args))
-                return ast.Call(func=ast.Name(id=placeholder_func_name, ctx=ast.Load()), args=[], keywords=[])
-        return self.generic_visit(node)
+                call_node = ast.Call(func=ast.Name(id=placeholder_func_name, ctx=ast.Load()), args=[], keywords=[])
+                # mark the node to distinguish it from a regular Call node
+                call_node._precomputed = True  # type: ignore[attr-defined]
+                return call_node
+        return self.generic_visit(node)  # pragma: no cover
 
 
 def safe_eval(
@@ -95,6 +98,16 @@ def safe_eval(
         tree = ast.parse(expr, mode='eval')
     except SyntaxError as e:
         raise ValueError('invalid expression') from e
+    # first, validate the AST nodes
+    for node in ast.walk(tree):
+        if (
+            ((tp := type(node)) not in safe_node_types)
+            and not (
+                (isinstance(node, ast.Call) and (eval_callable or eval_callable_with_lit_args))
+                or (isinstance(node, ast.Constant) and allow_quotes)
+            )
+        ):
+            raise ValueError(f'disallowed construct: {tp.__name__}')
     _locals: dict[str, T | Callable[..., T]] = {}
     if eval_callable_with_lit_args:
         # process the AST to pre-evaluate callable nodes with all-literal children
@@ -114,12 +127,13 @@ def safe_eval(
         tree = _LiteralWrapper().visit(tree)
         ast.fix_missing_locations(tree)
     for node in ast.walk(tree):
-        if eval_callable and isinstance(node, ast.Call) and (node.func.id != '__lit__'):  # type: ignore[attr-defined]
+        if (
+            eval_callable
+            and isinstance(node, ast.Call)
+            and (not getattr(node, '_precomputed', False))
+            and (node.func.id != '__lit__')  # type: ignore[attr-defined]
+        ):
             _locals[node.func.id] = eval_callable(node.func.id)  # type: ignore[attr-defined]
-        elif allow_quotes and isinstance(node, (ast.Call, ast.Constant)):
-            continue
-        elif (tp := type(node)) not in safe_node_types:
-            raise ValueError(f'disallowed construct: {tp.__name__}')
         elif isinstance(node, ast.Name) and (node.id != '__lit__') and (node.id not in _locals):
             # NOTE: eval_identifier should raise an error if identifier is invalid
             _locals[node.id] = eval_name(node.id)  # type: ignore[misc]
@@ -133,6 +147,7 @@ def safe_eval_boolean_expr(
     *,
     allow_quotes: bool = False,
     eval_callable: Optional[Callable[[str], EvalCallable[T]]] = None,
+    eval_callable_with_lit_args: Optional[Callable[[str], Optional[EvalCallable[T]]]] = None,
 ) -> T:
     """Given an expression and a callable `eval_name`, evaluates the expression to a Python object using
     a safe version of `eval` which only allows specific identifiers and boolean connectives.
@@ -140,12 +155,16 @@ def safe_eval_boolean_expr(
     the name is not valid.
     If `allow_quotes` is True, additionally allows the use of quoted literals as names as well.
         - This is useful when names may contain symbols not permitted in Python identifiers.
-    If `eval_callable` is provided, it should be a function which evaluates names to callables (of any arity) whose
-    arguments are of type T."""
+    If `eval_callable` is provided, it should be a function which evaluates names to callables which take any number of
+    arguments of type T as input and return a T as output. The arguments are assumed to already be recursively
+    evaluated.
+    If `eval_callable_with_lit_args` is provided, it should be a function which evaluates names to callables which take
+    any number of raw (unevaluated) literals as input and return a T as output."""
     return safe_eval(
         expr,
         eval_name=eval_name,
         safe_node_types=BOOLEAN_SAFE_NODE_TYPES,
         allow_quotes=allow_quotes,
         eval_callable=eval_callable,
+        eval_callable_with_lit_args=eval_callable_with_lit_args,
     )

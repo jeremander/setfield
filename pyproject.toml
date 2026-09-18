@@ -118,3 +118,10 @@ min-severity = "warn"
 
 [tool.pyrefly.errors]
 missing-override-decorator = "ignore"
+unused-ignore = "error"
+
+[[tool.pyrefly.sub-config]]
+matches = "tests/test_eval.py"
+
+[tool.pyrefly.sub-config.errors]
+implicit-any-lambda = "ignore"

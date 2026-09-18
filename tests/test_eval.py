@@ -2,6 +2,7 @@
 
 import ast
 from collections.abc import Callable
+import re
 from typing import Optional, TypeAlias, TypeVar
 
 import pytest
@@ -58,17 +59,42 @@ def example_eval_callable(name: str) -> Callable[..., Subset[int]]:
         case 'empty0':
             return lambda: empty
         case 'empty1':
-            return lambda _set1: empty  # pyrefly: ignore[implicit-any-lambda]
+            return lambda _set1: empty
         case 'empty2':
-            return lambda _set1, _set2: empty  # pyrefly: ignore[implicit-any-lambda]
+            return lambda _set1, _set2: empty
+        case 'func':
+            return lambda _set1: Subset(small_universe, {1, 2})
     raise ValueError(f'invalid callable: {name}')
 
-def example_interpret(expr: str, *, allow_quotes: bool = False, allow_callable: bool = False) -> BaseSubset[int]:
+def example_eval_callable_with_lit_args(name: str) -> Optional[Callable[..., Subset[int]]]:
+    match name:
+        case 'func':  # NOTE: this shadows and takes priority over the eval_callable 'func'
+            return lambda _set1: Subset(small_universe, {3})
+        case 'str2ints':
+            return lambda s: Subset(small_universe, {int(c) for c in s})
+        case _:
+            return None
+
+def example_interpret(
+    expr: str,
+    *,
+    allow_quotes: bool = False,
+    allow_callable: bool = False,
+    allow_callable_with_lit_args: bool = False,
+) -> BaseSubset[int]:
     """Example interpretation function for evaluating a boolean expression combining named sets.
     If allow_quotes=True, allows quoted names.
-    If allow_callable, allows example callables (empty0, empty1, empty2)."""
+    If allow_callable, allows example callables with evaluated args.
+    If allow_callable, allows example callables with literal args."""
     eval_callable = example_eval_callable if allow_callable else None
-    return safe_eval_boolean_expr(expr, example_eval_name, allow_quotes=allow_quotes, eval_callable=eval_callable)
+    eval_callable_with_lit_args = example_eval_callable_with_lit_args if allow_callable_with_lit_args else None
+    return safe_eval_boolean_expr(
+        expr,
+        example_eval_name,
+        allow_quotes=allow_quotes,
+        eval_callable=eval_callable,
+        eval_callable_with_lit_args=eval_callable_with_lit_args,
+    )
 
 
 class TestInterpretation:
@@ -396,140 +422,303 @@ class TestInterpretation:
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr, allow_quotes=True)
 
-    @pytest.mark.parametrize(['expr', 'allow_quotes', 'output_set'], [
+    @pytest.mark.parametrize(['expr', 'allow_quotes', 'allow_callable_with_lit_args', 'output_set_or_err'], [
         (
-            'empty0()',
+            'D',
             None,
-            set(),
+            None,
+            ValueError('invalid name: D'),
         ),
         (
             'A',
             None,
+            None,
             {1, 2, 3},
         ),
         (
-            'A & empty0()',
+            'A()',
+            None,
+            None,
+            ValueError('invalid callable: A'),
+        ),
+        (
+            'empty0',
+            None,
+            None,
+            ValueError('invalid name: empty0'),
+        ),
+        (
+            'empty0()',
+            None,
             None,
             set(),
         ),
         (
+            'empty0(',
+            None,
+            None,
+            ValueError('invalid expression'),
+        ),
+        (
+            'A & empty0()',
+            None,
+            None,
+            set(),
+        ),
+        (
+            'empty0(A)',
+            None,
+            None,
+            TypeError('takes 0 positional arguments but 1 was given'),
+        ),
+        (
+            'empty1()',
+            None,
+            None,
+            TypeError('missing 1 required positional argument'),
+        ),
+        (
+            'empty1(123)',
+            False,
+            None,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'empty1(123)',
+            True,
+            None,
+            ValueError('disallowed literal type: int'),
+        ),
+        (
+            'empty1("A")',
+            False,
+            None,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            "empty1('A')",
+            False,
+            None,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'empty2(A)',
+            None,
+            None,
+            TypeError('missing 1 required positional argument'),
+        ),
+        (
             'empty1(A)',
+            None,
             None,
             set(),
         ),
         (
             'empty1("A")',
             True,
+            None,
             set(),
         ),
         (
             "empty1('A')",
             True,
+            None,
             set(),
         ),
         (
             'empty1(A | B)',
+            None,
             None,
             set(),
         ),
         (
             'empty2(A, B)',
             None,
+            None,
             set(),
+        ),
+        (
+            'str2ints()',
+            None,
+            False,
+            ValueError('invalid callable: str2ints'),
+        ),
+        (
+            'str2ints()',
+            None,
+            True,
+            TypeError('missing 1 required positional argument'),
+        ),
+        (
+            'str2ints(A)',
+            None,
+            False,
+            ValueError('invalid callable: str2ints'),
+        ),
+        (
+            'str2ints(A)',
+            None,
+            True,
+            ValueError('all arguments to str2ints must be literals'),
+        ),
+        (
+            'str2ints("A")',
+            False,
+            False,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'str2ints("A")',
+            True,
+            False,
+            ValueError('invalid callable: str2ints')
+        ),
+        (
+            'str2ints("A")',
+            False,
+            True,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'str2ints("A")',
+            True,
+            True,
+            ValueError(r'invalid literal for int\(\) with base 10'),
+        ),
+        (
+            'str2ints(123)',
+            False,
+            True,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'str2ints(123)',
+            True,
+            True,
+            TypeError("'int' object is not iterable"),
+        ),
+        (
+            'str2ints("123")',
+            False,
+            True,
+            ValueError('disallowed construct: Constant'),
+        ),
+        (
+            'str2ints("123")',
+            True,
+            True,
+            {1, 2, 3},
+        ),
+        (
+            'str2ints("0123")',
+            True,
+            True,
+            ValueError('0 is not an element of the universe'),
+        ),
+        (
+            'str2ints("12") | str2ints("3") | empty0()',
+            True,
+            True,
+            {1, 2, 3},
+        ),
+        (
+            'func(A)',
+            None,
+            False,
+            {1, 2},
+        ),
+        (
+            'func(A)',
+            None,
+            True,
+            ValueError('all arguments to func must be literals'),
+        ),
+        (
+            'func("A")',
+            True,
+            False,
+            {1, 2},
+        ),
+        (
+            'func("A")',
+            True,
+            True,
+            {3},
+        ),
+        (
+            "func('A')",
+            True,
+            False,
+            {1, 2},
+        ),
+        (
+            "func('A')",
+            True,
+            True,
+            {3},
         ),
         (
             'empty1(empty0())',
             None,
+            None,
             set(),
+        ),
+        (
+            'func(empty1(empty0()))',
+            None,
+            False,
+            {1, 2},
+        ),
+        (
+            'func(empty1(empty0()))',
+            None,
+            True,
+            ValueError('all arguments to func must be literals'),
         ),
         (
             'empty2(empty0(), empty1(A))',
             None,
+            None,
             set(),
         ),
         (
-            'empty0() | empty0() | empty1(A) | empty1(B) | empty1(A)',
+            'empty0() | empty0() | empty1(A) | empty1(B) | func(A) | empty1(A) | func(A)',
             None,
-            set(),
+            False,
+            {1, 2},
+        ),
+        (
+            'empty0() | empty0() | empty1(A) | empty1(B) | func(A) | empty1(A) | func(A)',
+            None,
+            True,
+            ValueError('all arguments to func must be literals'),
         ),
     ])
     def test_interpret_bool_expr_with_callable_valid(
         self,
         expr: str,
         allow_quotes: Optional[bool],
-        output_set: set[int],
+        allow_callable_with_lit_args: Optional[bool],
+        output_set_or_err: set[int] | Exception,
     ) -> None:
         """Tests an example evaluation function which permits callables, for valid expressions."""
-        flags = [False, True] if (allow_quotes is None) else [allow_quotes]
-        for flag in flags:
-            value = example_interpret(expr, allow_quotes=flag, allow_callable=True)
-            assert set(value) == output_set
-
-    @pytest.mark.parametrize(['expr', 'allow_quotes', 'error'], [
-        (
-            'D',
-            None,
-            'invalid name: D',
-        ),
-        (
-            'empty0',
-            None,
-            'invalid name: empty0',
-        ),
-        (
-            'empty0(',
-            None,
-            'invalid expression',
-        ),
-        (
-            'empty0(A)',
-            None,
-            'takes 0 positional arguments but 1 was given',
-        ),
-        (
-            'empty1()',
-            None,
-            'missing 1 required positional argument',
-        ),
-        (
-            'empty2(A)',
-            None,
-            'missing 1 required positional argument',
-        ),
-        (
-            'A()',
-            None,
-            'invalid callable: A',
-        ),
-        (
-            'empty1(123)',
-            False,
-            'disallowed construct: Constant',
-        ),
-        (
-            'empty1(123)',
-            True,
-            'disallowed literal type: int',
-        ),
-        (
-            'empty1("A")',
-            False,
-            'disallowed construct: Constant',
-        ),
-        (
-            "empty1('A')",
-            False,
-            'disallowed construct: Constant',
-        ),
-    ])
-    def test_interpret_bool_expr_with_callable_invalid(
-        self,
-        expr: str,
-        allow_quotes: Optional[bool],
-        error: str,
-    ) -> None:
-        """Tests an example evaluation function which permits callables, for invalid expressions."""
-        flags = [False, True] if (allow_quotes is None) else [allow_quotes]
-        for flag in flags:
-            with pytest.raises((ValueError, TypeError), match=error):
-                _ = example_interpret(expr, allow_quotes=flag, allow_callable=True)
+        allow_quotes_flags = [False, True] if (allow_quotes is None) else [allow_quotes]
+        allow_callable_with_lit_args_flags = (
+            [False, True]
+            if (allow_callable_with_lit_args is None)
+            else [allow_callable_with_lit_args]
+        )
+        for allow_quotes_flag in allow_quotes_flags:
+            for allow_callable_with_lit_args_flag in allow_callable_with_lit_args_flags:
+                try:
+                    value = example_interpret(
+                        expr,
+                        allow_quotes=allow_quotes_flag,
+                        allow_callable=True,
+                        allow_callable_with_lit_args=allow_callable_with_lit_args_flag,
+                    )
+                except Exception as e:
+                    assert type(e) is type(output_set_or_err)  # noqa: PT017
+                    assert re.search(str(output_set_or_err), str(e))  # noqa: PT017
+                else:
+                    assert set(value) == output_set_or_err
