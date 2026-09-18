@@ -35,6 +35,7 @@ path = "setfield/__init__.py"
 dependencies = [
   "hypothesis>=6.148",
   "mypy>=2.0",
+  "pyrefly>=1.3",
   "pytest-mypy",
   "ruff>=0.15",
   "vermin>=1.6",
@@ -46,8 +47,9 @@ run-ruff = "ruff check {args:setfield tests}"
 # ensure compatibility with minimum Python version
 run-vermin = "vermin {args:.}"
 # type-checking
+run-pyrefly = "pyrefly check {args:setfield tests}"
 run-mypy = "mypy --install-types --non-interactive {args:setfield tests}"
-all = ["run-ruff", "run-vermin", "run-mypy"]
+all = ["run-ruff", "run-vermin", "run-pyrefly", "run-mypy"]
 
 [tool.hatch.envs.test]
 dependencies = [
