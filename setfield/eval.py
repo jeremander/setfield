@@ -2,14 +2,14 @@
 
 import ast
 from collections.abc import Callable
-from typing import Optional, TypeAlias, TypeVar
+from typing import Any, Optional, TypeAlias, TypeVar
 
 
 T = TypeVar('T')
 
 
-# function taking variadic T as input and returning T
-EvalCallable: TypeAlias = Callable[[*tuple[T, ...]], T]
+# function taking variadic args as input and returning T
+EvalCallable: TypeAlias = Callable[..., T]
 
 
 # ast node types safe for boolean expressions
@@ -35,6 +35,34 @@ class _LiteralWrapper(ast.NodeTransformer):
             keywords=[],
         )
 
+class _EvalCallableOnLiterals(ast.NodeTransformer):
+    """Helper class for modifying a parsed AST to pre-apply a callable with literal arguments."""
+
+    def __init__(self, eval_callable_with_lit_args: Callable[[str], Optional[EvalCallable[Any]]]) -> None:
+        self.eval_callable_with_lit_args = eval_callable_with_lit_args
+        self._precompute_ctr = 0
+        self._precompute_funcs: dict[str, Callable[[], Any]] = {}
+
+    def _add_precompute_func(self, val: Any) -> str:
+        name = f'__precomputed{self._precompute_ctr}'
+        self._precompute_ctr += 1
+        self._precompute_funcs[name] = lambda: val
+        return name
+
+    def visit_Call(self, node: ast.Call) -> ast.AST:
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+            if (func := self.eval_callable_with_lit_args(func_name)) is not None:
+                args = []
+                for arg in node.args:
+                    if not isinstance(arg, ast.Constant):
+                        raise ValueError(f'all arguments to {func_name} must be literals')
+                    args.append(arg.value)
+                # create a new placeholder function which takes no arguments and returns the precomputed value
+                placeholder_func_name = self._add_precompute_func(func(*args))
+                return ast.Call(func=ast.Name(id=placeholder_func_name, ctx=ast.Load()), args=[], keywords=[])
+        return self.generic_visit(node)
+
 
 def safe_eval(
     expr: str,
@@ -43,6 +71,7 @@ def safe_eval(
     safe_node_types: set[type],
     allow_quotes: bool = False,
     eval_callable: Optional[Callable[[str], EvalCallable[T]]] = None,
+    eval_callable_with_lit_args: Optional[Callable[[str], Optional[EvalCallable[T]]]] = None,
 ) -> T:
     """Calls Python's `eval` function in a more "safe" context, in that the caller must provide:
         1. `eval_name`: a callable which maps names (identifiers) to Python objects of type T, and errors if the name
@@ -55,29 +84,40 @@ def safe_eval(
     If `eval_name` is None, then no identifiers will be permitted.
     If `allow_quotes` is True, additionally allows the use of quoted literals as names as well.
         - This is useful when names may contain symbols not permitted in Python identifiers.
-    If `eval_callable` is provided, it should be a function which evaluates names to callables (of any arity) whose
-    arguments are of type T."""
+    If `eval_callable` is provided, it should be a function which evaluates names to callables which take any number of
+    arguments of type T as input and return a T as output. The arguments are assumed to already be recursively
+    evaluated.
+    If `eval_callable_with_lit_args` is provided, it should be a function which evaluates names to callables which take
+    any number of raw (unevaluated) literals as input and return a T as output."""
     if eval_name is None:
         safe_node_types = safe_node_types - {ast.Name}
     try:
         tree = ast.parse(expr, mode='eval')
     except SyntaxError as e:
         raise ValueError('invalid expression') from e
+    _locals: dict[str, T | Callable[..., T]] = {}
+    if eval_callable_with_lit_args:
+        # process the AST to pre-evaluate callable nodes with all-literal children
+        transformer = _EvalCallableOnLiterals(eval_callable_with_lit_args)
+        tree = transformer.visit(tree)
+        ast.fix_missing_locations(tree)
+        # retrieve the names of the placeholder functions which will return the precomputed values
+        _locals.update(transformer._precompute_funcs)
     eval_lit = None
     if allow_quotes and (eval_name is not None):
-        # wrap constants in
-        tree = _LiteralWrapper().visit(tree)
-        ast.fix_missing_locations(tree)
+        # since string names are permitted, we will evaluate literal strings with the `eval_name` function
         def eval_lit(s: str) -> T:
             if isinstance(s, str):
                 return eval_name(s)
             raise ValueError(f'disallowed literal type: {type(s).__name__}')
-    _locals: dict[str, T | Callable[..., T]] = {}
+        # wrap Constant nodes into Call nodes with the name as the argument, to be evaluated later by `eval_lit`
+        tree = _LiteralWrapper().visit(tree)
+        ast.fix_missing_locations(tree)
     for node in ast.walk(tree):
-        if allow_quotes and isinstance(node, (ast.Call, ast.Constant)):
-            continue
-        if eval_callable and isinstance(node, ast.Call):
+        if eval_callable and isinstance(node, ast.Call) and (node.func.id != '__lit__'):  # type: ignore[attr-defined]
             _locals[node.func.id] = eval_callable(node.func.id)  # type: ignore[attr-defined]
+        elif allow_quotes and isinstance(node, (ast.Call, ast.Constant)):
+            continue
         elif (tp := type(node)) not in safe_node_types:
             raise ValueError(f'disallowed construct: {tp.__name__}')
         elif isinstance(node, ast.Name) and (node.id != '__lit__') and (node.id not in _locals):

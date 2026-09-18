@@ -396,68 +396,140 @@ class TestInterpretation:
         with pytest.raises(ValueError, match=error):
             _ = example_interpret(expr, allow_quotes=True)
 
-    @pytest.mark.parametrize(['expr', 'output_set'], [
+    @pytest.mark.parametrize(['expr', 'allow_quotes', 'output_set'], [
         (
             'empty0()',
+            None,
             set(),
         ),
         (
             'A',
+            None,
             {1, 2, 3},
         ),
         (
             'A & empty0()',
+            None,
             set(),
         ),
         (
             'empty1(A)',
+            None,
+            set(),
+        ),
+        (
+            'empty1("A")',
+            True,
+            set(),
+        ),
+        (
+            "empty1('A')",
+            True,
             set(),
         ),
         (
             'empty1(A | B)',
+            None,
             set(),
         ),
         (
             'empty2(A, B)',
+            None,
+            set(),
+        ),
+        (
+            'empty1(empty0())',
+            None,
+            set(),
+        ),
+        (
+            'empty2(empty0(), empty1(A))',
+            None,
+            set(),
+        ),
+        (
+            'empty0() | empty0() | empty1(A) | empty1(B) | empty1(A)',
+            None,
             set(),
         ),
     ])
-    def test_interpret_bool_expr_with_callable_valid(self, expr: str, output_set: set[int]) -> None:
+    def test_interpret_bool_expr_with_callable_valid(
+        self,
+        expr: str,
+        allow_quotes: Optional[bool],
+        output_set: set[int],
+    ) -> None:
         """Tests an example evaluation function which permits callables, for valid expressions."""
-        value = example_interpret(expr, allow_callable=True)
-        assert set(value) == output_set
+        flags = [False, True] if (allow_quotes is None) else [allow_quotes]
+        for flag in flags:
+            value = example_interpret(expr, allow_quotes=flag, allow_callable=True)
+            assert set(value) == output_set
 
-    @pytest.mark.parametrize(['expr', 'error'], [
+    @pytest.mark.parametrize(['expr', 'allow_quotes', 'error'], [
         (
             'D',
+            None,
             'invalid name: D',
         ),
         (
             'empty0',
+            None,
             'invalid name: empty0',
         ),
         (
             'empty0(',
+            None,
             'invalid expression',
         ),
         (
             'empty0(A)',
+            None,
             'takes 0 positional arguments but 1 was given',
         ),
         (
             'empty1()',
+            None,
             'missing 1 required positional argument',
         ),
         (
             'empty2(A)',
+            None,
             'missing 1 required positional argument',
         ),
         (
             'A()',
+            None,
             'invalid callable: A',
         ),
+        (
+            'empty1(123)',
+            False,
+            'disallowed construct: Constant',
+        ),
+        (
+            'empty1(123)',
+            True,
+            'disallowed literal type: int',
+        ),
+        (
+            'empty1("A")',
+            False,
+            'disallowed construct: Constant',
+        ),
+        (
+            "empty1('A')",
+            False,
+            'disallowed construct: Constant',
+        ),
     ])
-    def test_interpret_bool_expr_with_callable_invalid(self, expr: str, error: str) -> None:
+    def test_interpret_bool_expr_with_callable_invalid(
+        self,
+        expr: str,
+        allow_quotes: Optional[bool],
+        error: str,
+    ) -> None:
         """Tests an example evaluation function which permits callables, for invalid expressions."""
-        with pytest.raises((ValueError, TypeError), match=error):
-            _ = example_interpret(expr, allow_callable=True)
+        flags = [False, True] if (allow_quotes is None) else [allow_quotes]
+        for flag in flags:
+            with pytest.raises((ValueError, TypeError), match=error):
+                _ = example_interpret(expr, allow_quotes=flag, allow_callable=True)
