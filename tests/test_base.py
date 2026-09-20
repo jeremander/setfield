@@ -3,12 +3,14 @@
 from contextlib import suppress
 import dataclasses
 from functools import reduce
+import itertools
 import operator
 import re
-from typing import TypeVar
+from typing import Any, Optional, TypeVar
 
 from hypothesis import event, given, settings
 import hypothesis.errors
+import hypothesis.strategies as st
 import pytest
 
 from setfield import (
@@ -22,6 +24,7 @@ from setfield import (
     SubsetComplement,
     SubsetIntersection,
     SubsetUnion,
+    get_atoms,
     get_full_subset,
 )
 
@@ -73,10 +76,12 @@ class TestSubset:
         assert subset <= subset
         assert subset <= subset.elements
         assert subset.elements >= subset
-        assert empty_subset <= subset
-        assert (empty_subset < subset) == (empty_subset != subset)
-        assert subset <= universe_subset
-        assert (subset < universe_subset) == (subset != universe_subset)
+        empty = empty_subset()
+        assert empty <= subset
+        assert (empty < subset) == (empty != subset)
+        universe = universe_subset()
+        assert subset <= universe
+        assert (subset < universe) == (subset != universe)
         with pytest.raises(TypeError, match='not supported'):
             _ = subset < 123
         # law of double negation
@@ -94,15 +99,15 @@ class TestSubset:
         assert subset | subset == subset
         # assert subset | subset is subset
         # laws of identity
-        assert subset & universe_subset == subset
-        assert subset | empty_subset == subset
+        assert subset & universe == subset
+        assert subset | empty == subset
         # laws of annihilation
-        assert subset & empty_subset == empty_subset
-        assert subset | universe_subset == universe_subset
+        assert subset & empty == empty
+        assert subset | universe == universe
         # law of excluded middle
         assert subset.isdisjoint(neg_subset)
-        assert subset ^ subset == empty_subset
-        assert subset ^ neg_subset == universe_subset
+        assert subset ^ subset == empty
+        assert subset ^ neg_subset == universe
         if isinstance(subset, (Subset, RangeUnionSubset)):
             # eval should be the inverse of repr
             subset2 = eval(repr(subset))
@@ -110,22 +115,24 @@ class TestSubset:
             assert subset2 == subset
 
     def test_empty_subset(self) -> None:
-        assert type(empty_subset) is Subset
-        assert len(empty_subset) == 0
-        assert ~empty_subset == universe_subset
-        self._test_base_subset(empty_subset)
+        empty = empty_subset()
+        assert type(empty) is Subset
+        assert len(empty) == 0
+        assert ~empty == universe_subset()
+        self._test_base_subset(empty)
 
     def test_universe_subset(self) -> None:
-        assert type(universe_subset) is Subset
-        assert len(universe_subset) == TEST_UNIVERSE_MAX + 1
-        assert 0 in universe_subset
-        assert TEST_UNIVERSE_MAX in universe_subset
-        assert {0, 1, TEST_UNIVERSE_MAX} < universe_subset
-        assert (TEST_UNIVERSE_MAX + 1) not in universe_subset
-        assert len(~universe_subset) == 0
-        assert set(~universe_subset) == set()
-        assert ~universe_subset == empty_subset
-        self._test_base_subset(universe_subset)
+        universe = universe_subset()
+        assert type(universe) is Subset
+        assert len(universe) == TEST_UNIVERSE_MAX + 1
+        assert 0 in universe
+        assert TEST_UNIVERSE_MAX in universe
+        assert {0, 1, TEST_UNIVERSE_MAX} < universe
+        assert (TEST_UNIVERSE_MAX + 1) not in universe
+        assert len(~universe) == 0
+        assert set(~universe) == set()
+        assert ~universe == empty_subset()
+        self._test_base_subset(universe)
 
     def test_infinite_universe(self) -> None:
         subset = Subset(None, {0, 1, 2})
@@ -360,11 +367,13 @@ class TestSubset:
     def test_boolean_operators(self) -> None:
         subset1 = subset_static({0, 1, 2})
         subset2 = subset_static({2, 3, 4})
+        empty = empty_subset()
+        universe = universe_subset()
         assert subset1 != subset2
         assert not subset1.isdisjoint(subset2)
         assert subset1 & subset2 == {2}
         assert subset1 ^ subset2 == {0, 1, 3, 4}
-        assert empty_subset < subset1 < universe_subset
+        assert empty < subset1 < universe
         union = subset1 | subset2
         assert type(union) is SubsetUnion
         assert union == {0, 1, 2, 3, 4}
@@ -410,7 +419,7 @@ class TestSubset:
         diff = subset1 - subset2
         assert type(diff) is SubsetIntersection
         assert diff == {0, 1}
-        assert empty_subset < diff < subset1
+        assert empty < diff < subset1
         assert type(subset1 - subset2.elements) is SubsetIntersection
         assert (subset1 - subset2.elements) == diff
         assert type(subset1.elements - subset2) is SubsetIntersection
@@ -459,7 +468,7 @@ class TestSubset:
     def test_subset_intersection(self, subset: SubsetIntersection[int]) -> None:
         self._test_base_subset(subset)
         if not subset.subsets:
-            assert subset.elements is TEST_UNIVERSE
+            assert subset.elements == TEST_UNIVERSE
         assert all(subset <= component for component in subset.subsets)
         if subset.subsets:
             assert reduce(
@@ -480,3 +489,132 @@ class TestSubset:
     @settings(deadline=None)
     def test_subset_generic(self, subset: BaseSubset[int]) -> None:
         self._test_base_subset(subset)
+
+    def test_subset_repr(self) -> None:
+        subset1 = Subset({1, 2}, {1})
+        subset2 = Subset({1, 2}, {2})
+        assert repr(subset1) == 'Subset(universe={1, 2}, elements={1})'
+        assert repr(~subset1) == 'SubsetComplement(Subset(universe={1, 2}, elements={1}))'
+        assert repr(subset1 & subset2) == (
+            'SubsetIntersection(subsets=[Subset(universe={1, 2}, elements={1}), '
+            'Subset(universe={1, 2}, elements={2})])'
+        )
+        assert repr(subset1 | subset2) == (
+            'SubsetUnion(subsets=[Subset(universe={1, 2}, elements={1}), '
+            'Subset(universe={1, 2}, elements={2})])'
+        )
+
+
+def _test_get_atoms(
+    subsets: list[BaseSubset[Any]],
+    atoms: Optional[list[tuple[tuple[bool, ...], BaseSubset[Any]]]] = None,
+) -> None:
+    true_atoms = get_atoms(subsets)
+    if atoms is not None:
+        # atoms match what we expect
+        assert true_atoms == atoms
+    atom_sets = [set(atom) for (_, atom) in true_atoms]
+    # sign vectors are all distinct
+    assert len({signs for (signs, _) in true_atoms}) == len(true_atoms)
+    # all atoms are non-empty
+    for atom in atom_sets:
+        assert len(atom) > 0
+    if subsets:
+        universe = subsets[0].universe
+        assert all(subset.universe == universe for subset in subsets[1:])
+        # union of atoms is the universe
+        assert set.union(*atom_sets) == universe
+    else:
+        assert not atom_sets
+    # atoms are pairwise disjoint
+    for (atom1, atom2) in itertools.combinations(atom_sets, 2):
+        assert not (atom1 & atom2)
+    # for each atom A and subset S, either (S & A) = A or (S & A) = {}
+    for (atom, subset) in itertools.product(atom_sets, subsets):
+        conj = atom & subset
+        assert (conj == atom) or (not conj)
+
+@pytest.mark.parametrize(['subsets', 'atoms'], [
+    (
+        [],
+        [],
+    ),
+    (
+        [Subset('a', 'a')],
+        [((True,), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('a', '')],
+        [((False,), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('a', 'a'), Subset('a', 'a')],
+        [((True, True), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('a', ''), Subset('a', '')],
+        [((False, False), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('a', ''), Subset('a', 'a')],
+        [((False, True), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('a', 'a'), Subset('a', '')],
+        [((True, False), Subset('a', 'a'))],
+    ),
+    (
+        [Subset('abc', 'abc')],
+        [((True,), Subset('abc', 'abc'))],
+    ),
+    (
+        [Subset('abc', '')],
+        [((False,), Subset('abc', 'abc'))],
+    ),
+    (
+        [Subset('abc', 'ab')],
+        [((True,), Subset('abc', 'ab')), ((False,), Subset('abc', 'c'))],
+    ),
+    (
+        [Subset('abc', 'ab'), Subset('abc', 'bc')],
+        [
+            ((True, True), Subset('abc', 'b')),
+            ((True, False), Subset('abc', 'a')),
+            ((False, True), Subset('abc', 'c')),
+        ],
+    ),
+    (
+        [Subset('abc', 'a'), Subset('abc', 'b'), Subset('abc', 'c')],
+        [
+            ((True, False, False), Subset('abc', 'a')),
+            ((False, True, False), Subset('abc', 'b')),
+            ((False, False, True), Subset('abc', 'c')),
+        ],
+    ),
+])
+def test_get_atoms_specific(
+    subsets: list[BaseSubset[Any]],
+    atoms: list[tuple[tuple[bool, ...], BaseSubset[Any]]],
+) -> None:
+    _test_get_atoms(subsets, atoms)
+
+@given(
+    st.lists(
+        subsets(max_leaf_size=10, max_leaves=10, max_width=3, universe_size=10),
+        min_size=1,
+        max_size=3,
+    )
+)
+def test_get_atoms_generic(subsets: list[BaseSubset[int]]) -> None:
+    _test_get_atoms(subsets)
+
+def test_get_atoms_invalid() -> None:
+    subset1 = Subset(None, {1})
+    subset2 = Subset({0}, {0})
+    subset3 = Subset({0, 1}, {0})
+    with pytest.raises(ValueError, match='universe must be finite'):
+        _ = get_atoms([subset1])
+    with pytest.raises(ValueError, match='universe must be finite'):
+        _ = get_atoms([subset1, subset2])
+    with pytest.raises(ValueError, match='all subsets must have the same universe'):
+        _ = get_atoms([subset2, subset3])

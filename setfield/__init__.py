@@ -10,6 +10,7 @@ from ._base import Subset as Subset
 from ._base import SubsetComplement as SubsetComplement
 from ._base import SubsetIntersection as SubsetIntersection
 from ._base import SubsetUnion as SubsetUnion
+from ._base import get_atoms as get_atoms
 from ._base import get_empty_subset as get_empty_subset
 from ._base import get_full_subset as get_full_subset
 from .eval import BOOLEAN_SAFE_NODE_TYPES as BOOLEAN_SAFE_NODE_TYPES
@@ -21,4 +22,4 @@ from .unicode import AllUnicode as AllUnicode
 from .unicode import UnicodeRanges as UnicodeRanges
 
 
-__version__ = '0.2.5'
+__version__ = '0.2.6'
